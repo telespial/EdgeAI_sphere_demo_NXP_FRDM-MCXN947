@@ -1,0 +1,6 @@
+name: edgeai_sand_demo
+description: Falling-sand sandbox with FXLS8974CF tilt gravity (FRDM-MCXN947)
+boards:
+  - frdmmcxn947
+toolchains:
+  - armgcc

@@ -30,5 +30,10 @@ Editable code:
 
 The wrapper example's `CMakeLists.txt` pulls sources/includes from the editable code path.
 
+If you clone this repo on a new machine, install the wrapper into your local `mcuxsdk-examples` checkout with:
+```bash
+projects/nxp/frdm-mcxn947/EdgeAI_sand_demo/sdk_example/install_mcux_overlay.sh
+```
+
 ## Flashing
 LinkServer is used by default (see `docs/PROJECT_STATE.md` + `docs/OPS_RUNBOOK.md` in top-level `codemaster`).
