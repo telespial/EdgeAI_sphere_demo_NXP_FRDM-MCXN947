@@ -26,7 +26,7 @@
  * Current default fixes common "left/right inverted" mounting.
  */
 #ifndef EDGEAI_ACCEL_SWAP_XY
-#define EDGEAI_ACCEL_SWAP_XY 0
+#define EDGEAI_ACCEL_SWAP_XY 1
 #endif
 #ifndef EDGEAI_ACCEL_INVERT_X
 #define EDGEAI_ACCEL_INVERT_X 1
