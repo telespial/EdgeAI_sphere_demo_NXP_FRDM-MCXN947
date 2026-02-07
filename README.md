@@ -9,12 +9,15 @@ Working copy:
 - `sdk_example/`: SDK-based app project (MCUX SDK / Zephyr-style via `west`)
 - `src/`: portable sim + sensor driver code
 
-Build/flash flow:
-- Use `scripts/build.sh` and `scripts/flash.sh` from the top-level `codemaster` repo.
-- Configure build/flash in `docs/PROJECT_STATE.md` in the top-level `codemaster` repo.
+Build/flash flow (self-contained):
+1. Bootstrap user-local tools (no sudo): `./tools/bootstrap_ubuntu_user.sh`
+2. Create/update local MCUX west workspace: `./tools/setup_mcuxsdk_ws.sh`
+   - If you hit a transient network/TLS error, just re-run the setup script.
+3. Build: `./tools/build_frdmmcxn947.sh`
+4. Flash (requires NXP LinkServer installed): `./tools/flash_frdmmcxn947.sh`
 
 Board docs:
-- `platforms/mcu/nxp/mcxn/boards/frdm-mcxn947/docs/` (in the top-level `codemaster` repo)
+- See `docs/HARDWARE.md`
 
 Status:
 - See STATUS.md

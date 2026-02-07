@@ -7,9 +7,8 @@ Hardware assumption:
 - FRDM-MCXN947 + MikroShield + Accel 4 Click (FXLS8974CF) on mikroBUS
 - I2C via FC3 (mikroBUS SDA/SCL), address 0x18 or 0x19, `WHO_AM_I` = 0x86
 
-Code lives in the top-level `codemaster` project repo:
-- `projects/nxp/frdm-mcxn947/EdgeAI_sand_demo/src/`
-- `projects/nxp/frdm-mcxn947/EdgeAI_sand_demo/docs/`
+Code lives in this repo:
+- `src/`
+- `docs/`
 
-This example's CMake pulls sources from that folder so development stays in the project repo.
-
+This example's CMake pulls sources from this repo so development stays in one place.

@@ -6,7 +6,13 @@ project(edgeai_sand_demo LANGUAGES C CXX ASM PROJECT_BOARD_PORT_PATH ${board_roo
 
 include(${SdkRootDirPath}/CMakeLists.txt)
 
-get_filename_component(EDGEAI_ROOT "${SdkRootDirPath}/../../../../projects/nxp/frdm-mcxn947/EdgeAI_sand_demo" ABSOLUTE)
+if(DEFINED ENV{EDGEAI_SAND_DEMO_ROOT})
+    set(EDGEAI_ROOT "$ENV{EDGEAI_SAND_DEMO_ROOT}")
+else()
+    # Default layout: this repo contains ./mcuxsdk_ws and the workspace contains mcuxsdk/.
+    # SdkRootDirPath points at <repo>/mcuxsdk_ws/mcuxsdk, so ../.. is the repo root.
+    get_filename_component(EDGEAI_ROOT "${SdkRootDirPath}/../.." ABSOLUTE)
+endif()
 
 mcux_add_source(
     BASE_PATH ${EDGEAI_ROOT}
@@ -23,4 +29,3 @@ mcux_add_include(
 include(${SdkRootDirPath}/${board_root}/${board}/demo_apps/edgeai_sand_demo/reconfig.cmake OPTIONAL)
 
 mcux_convert_binary(BINARY ${APPLICATION_BINARY_DIR}/${MCUX_SDK_PROJECT_NAME}.bin)
-
