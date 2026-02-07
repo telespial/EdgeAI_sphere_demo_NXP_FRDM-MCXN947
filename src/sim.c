@@ -84,6 +84,11 @@ static void step_sand(sim_grid_t *g, int x, int y, int gx, int gy, sim_rng_t *rn
     swap_cells(g, x, y, nx, ny);
     return;
   }
+  /* Sand sinks through water. */
+  if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_WATER) {
+    swap_cells(g, x, y, nx, ny);
+    return;
+  }
 
   // Try diagonals around gravity.
   int dx0 = gx + ((gy != 0) ? 1 : 0);
@@ -103,8 +108,16 @@ static void step_sand(sim_grid_t *g, int x, int y, int gx, int gy, sim_rng_t *rn
     swap_cells(g, x, y, nx, ny);
     return;
   }
+  if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_WATER) {
+    swap_cells(g, x, y, nx, ny);
+    return;
+  }
   nx = x + dx1; ny = y + dy1;
   if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_EMPTY) {
+    swap_cells(g, x, y, nx, ny);
+    return;
+  }
+  if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_WATER) {
     swap_cells(g, x, y, nx, ny);
     return;
   }
@@ -148,15 +161,20 @@ static void step_water(sim_grid_t *g, int x, int y, int gx, int gy, int sx, int 
     s1x = tx;  s1y = ty;
   }
 
-  nx = x + s0x; ny = y + s0y;
-  if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_EMPTY) {
-    swap_cells(g, x, y, nx, ny);
-    return;
+  /* Try to flow sideways up to a few cells to look less "stuck". */
+  for (int dist = 1; dist <= 3; dist++) {
+    nx = x + s0x * dist; ny = y + s0y * dist;
+    if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_EMPTY) {
+      swap_cells(g, x, y, nx, ny);
+      return;
+    }
   }
-  nx = x + s1x; ny = y + s1y;
-  if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_EMPTY) {
-    swap_cells(g, x, y, nx, ny);
-    return;
+  for (int dist = 1; dist <= 3; dist++) {
+    nx = x + s1x * dist; ny = y + s1y * dist;
+    if (in_bounds(g, nx, ny) && sim_get(g, (uint16_t)nx, (uint16_t)ny) == MAT_EMPTY) {
+      swap_cells(g, x, y, nx, ny);
+      return;
+    }
   }
 }
 

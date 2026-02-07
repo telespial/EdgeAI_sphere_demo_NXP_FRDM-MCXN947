@@ -21,3 +21,16 @@ config EDGEAI_USE_PAR_LCD_S035_DRIVERS
     select MCUX_COMPONENT_driver.st7796s
 
 endif
+
+menuconfig EDGEAI_USE_POSTFX
+    bool "Enable post-process effects (CPU)"
+    default y
+    help
+      Adds a cheap post-process pass for scanlines/vignette.
+
+menuconfig EDGEAI_USE_NPU_POSTFX
+    bool "Use NPU for postfx (stub)"
+    default n
+    help
+      Scaffolding toggle for routing the post-process stage through an NPU-backed
+      implementation. Currently a stub (falls back to CPU).

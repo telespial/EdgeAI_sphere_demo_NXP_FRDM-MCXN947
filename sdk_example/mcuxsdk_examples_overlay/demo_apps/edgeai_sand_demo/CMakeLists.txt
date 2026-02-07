@@ -19,6 +19,8 @@ mcux_add_source(
     SOURCES src/edgeai_sand_demo.c
             src/fxls8974cf.c
             src/par_lcd_s035.c
+            src/postfx.c
+            src/npu_postfx_stub.c
             src/sim.c
 )
 

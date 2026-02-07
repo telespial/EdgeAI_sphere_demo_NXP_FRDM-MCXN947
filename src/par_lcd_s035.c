@@ -14,6 +14,8 @@
 #include "board.h"
 #include "pin_mux.h"
 
+#include "postfx.h"
+
 /* LCD shield used by the FRDM-MCXN947 LVGL examples: PAR-LCD-S035.
  * Controller: ST7796S, 480x320, 8080 parallel via FlexIO0.
  *
@@ -173,7 +175,32 @@ static inline uint16_t mat_to_rgb565(uint8_t m)
     }
 }
 
-void par_lcd_s035_render_grid(const sim_grid_t *grid)
+static inline uint16_t rgb565_add(uint16_t c, int dr, int dg, int db)
+{
+    int r = (c >> 11) & 0x1F;
+    int g = (c >> 5)  & 0x3F;
+    int b = (c >> 0)  & 0x1F;
+    r += dr; g += dg; b += db;
+    if (r < 0) { r = 0; }
+    if (r > 31) { r = 31; }
+    if (g < 0) { g = 0; }
+    if (g > 63) { g = 63; }
+    if (b < 0) { b = 0; }
+    if (b > 31) { b = 31; }
+    return (uint16_t)((r << 11) | (g << 5) | (b << 0));
+}
+
+static inline uint32_t hash32(uint32_t x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return x;
+}
+
+void par_lcd_s035_render_grid(const sim_grid_t *grid, const uint8_t *trail, uint32_t frame)
 {
     if (!grid || !grid->cells || grid->w == 0 || grid->h == 0)
     {
@@ -192,8 +219,65 @@ void par_lcd_s035_render_grid(const sim_grid_t *grid)
         {
             uint32_t sx = (x * (uint32_t)grid->w) / EDGEAI_LCD_WIDTH;
             if (sx >= grid->w) sx = grid->w - 1u;
-            line[x] = mat_to_rgb565(row[sx]);
+            uint8_t m = row[sx];
+            uint16_t c = mat_to_rgb565(m);
+
+            /* Stylized shading: light from upper-left. */
+            if (m != MAT_EMPTY)
+            {
+                bool empty_up   = (sy == 0) ? true : (grid->cells[(sy - 1u) * (uint32_t)grid->w + sx] == MAT_EMPTY);
+                bool empty_left = (sx == 0) ? true : (row[sx - 1u] == MAT_EMPTY);
+                bool empty_dn   = (sy + 1u >= grid->h) ? true : (grid->cells[(sy + 1u) * (uint32_t)grid->w + sx] == MAT_EMPTY);
+                bool empty_rt   = (sx + 1u >= grid->w) ? true : (row[sx + 1u] == MAT_EMPTY);
+
+                if (empty_up || empty_left)
+                {
+                    c = rgb565_add(c, 2, 4, 2);
+                }
+                if (empty_dn || empty_rt)
+                {
+                    c = rgb565_add(c, -2, -4, -2);
+                }
+            }
+
+            /* Material-specific "feel". */
+            uint32_t h = hash32((frame * 131u) ^ (sx * 911u) ^ (sy * 3571u));
+            if (m == MAT_WATER)
+            {
+                /* shimmer highlights */
+                int s = (int)((h >> 28) & 0xF) - 7; /* [-7..8] */
+                c = rgb565_add(c, 0, s, s);
+            }
+            else if (m == MAT_SAND)
+            {
+                /* dither/noise */
+                int n = (int)((h >> 30) & 0x3) - 1; /* [-1..2] */
+                c = rgb565_add(c, n, n * 2, 0);
+            }
+            else if (m == MAT_METAL)
+            {
+                /* subtle specular streaks */
+                if (((h >> 27) & 0x7) == 0)
+                {
+                    c = rgb565_add(c, 3, 6, 3);
+                }
+            }
+
+            /* Motion trails (optional). */
+            if (trail)
+            {
+                uint8_t t = trail[sy * (uint32_t)grid->w + sx];
+                if (t)
+                {
+                    int boost = (int)(t >> 5); /* 0..7 */
+                    c = rgb565_add(c, boost, boost * 2, boost);
+                }
+            }
+
+            line[x] = c;
         }
+
+        postfx_apply_line_rgb565(line, EDGEAI_LCD_WIDTH, y, frame);
 
         ST7796S_SelectArea(&s_lcdHandle, 0, (uint16_t)y, EDGEAI_LCD_WIDTH - 1u, (uint16_t)y);
         s_memWriteDone = false;
