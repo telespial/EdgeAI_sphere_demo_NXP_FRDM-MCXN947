@@ -12,6 +12,12 @@ void par_lcd_s035_blit_rect(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint
 /* Filled circle in LCD pixel coordinates. */
 void par_lcd_s035_draw_filled_circle(int32_t cx, int32_t cy, int32_t r, uint16_t rgb565);
 
+/* One pixel in LCD pixel coordinates. */
+void par_lcd_s035_draw_pixel(int32_t x, int32_t y, uint16_t rgb565);
+
+/* Thin 1px line in LCD pixel coordinates. */
+void par_lcd_s035_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565);
+
 /* Fill rectangle (inclusive) in LCD pixel coordinates. */
 void par_lcd_s035_fill_rect(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565);
 

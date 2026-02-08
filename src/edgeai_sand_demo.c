@@ -22,6 +22,11 @@
 
 #define BALL_R 20
 
+/* Small 3D-ish axis overlay in the bottom-left corner. */
+#ifndef EDGEAI_ENV_AXES
+#define EDGEAI_ENV_AXES 1
+#endif
+
 /* Empirically, the raw 12-bit output here is roughly on the order of ~512 counts per 1g
  * at the current FXLS8974 config. We use this as the full-scale tilt mapping value.
  */
@@ -127,6 +132,49 @@ static int32_t clamp_i32_sym(int32_t v, int32_t limit_abs)
     return v;
 }
 
+static bool rects_intersect_i32(int32_t ax0, int32_t ay0, int32_t ax1, int32_t ay1,
+                                int32_t bx0, int32_t by0, int32_t bx1, int32_t by1)
+{
+    if (ax1 < bx0 || bx1 < ax0) return false;
+    if (ay1 < by0 || by1 < ay0) return false;
+    return true;
+}
+
+static void edgeai_draw_env_axes(void)
+{
+#if EDGEAI_ENV_AXES
+    const int32_t ox = 26, oy = LCD_H - 26;
+    const int32_t len = 110;
+    const uint16_t cx = 0x07FFu; /* cyan (X) */
+    const uint16_t cy = 0x07E0u; /* green (Y) */
+    const uint16_t cz = 0xF800u; /* red (Z) */
+    par_lcd_s035_draw_line(ox, oy, ox + len, oy, cx);
+    par_lcd_s035_draw_line(ox, oy, ox, oy - len, cy);
+    par_lcd_s035_draw_line(ox, oy, ox + (len * 3) / 5, oy - (len * 3) / 5, cz);
+#endif
+}
+
+static void edgeai_env_bbox(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1)
+{
+#if EDGEAI_ENV_AXES
+    const int32_t ox = 26, oy = LCD_H - 26;
+    const int32_t len = 110;
+    int32_t minx = ox;
+    int32_t maxx = ox + len;
+    int32_t miny = oy - len;
+    int32_t maxy = oy;
+    if (x0) *x0 = minx;
+    if (y0) *y0 = miny;
+    if (x1) *x1 = maxx;
+    if (y1) *y1 = maxy;
+#else
+    if (x0) *x0 = 0;
+    if (y0) *y0 = 0;
+    if (x1) *x1 = -1;
+    if (y1) *y1 = -1;
+#endif
+}
+
 int main(void)
 {
     BOARD_InitHardware();
@@ -172,6 +220,7 @@ int main(void)
     }
 
     par_lcd_s035_fill(0x0000u);
+    edgeai_draw_env_axes();
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
     edgeai_tensor_dims_t in_dims = {0};
@@ -457,6 +506,16 @@ int main(void)
              */
             par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
 
+            /* If we cleared over the axes overlay, redraw it. */
+            {
+                int32_t ex0, ey0, ex1, ey1;
+                edgeai_env_bbox(&ex0, &ey0, &ex1, &ey1);
+                if (rects_intersect_i32(x0, y0, x1, y1, ex0 - 2, ey0 - 2, ex1 + 2, ey1 + 2))
+                {
+                    edgeai_draw_env_axes();
+                }
+            }
+
             for (int i = 0; i < TRAIL_N; i++)
             {
                 uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
@@ -467,8 +526,27 @@ int main(void)
                 par_lcd_s035_draw_filled_circle(tx, ty, r0, c);
             }
 
-            par_lcd_s035_draw_ball_shadow(cx, cy, BALL_R);
-            par_lcd_s035_draw_silver_ball(cx, cy, BALL_R, frame++, glint);
+            /* Depth cue: shrink the ball a bit when it's closer to the "back wall" (top). */
+            int32_t r_draw = BALL_R;
+            {
+                const int32_t y_far = 26;
+                const int32_t y_near = LCD_H - 26;
+                int32_t denom = (y_near - y_far);
+                int32_t t_q8 = 256;
+                if (denom > 0)
+                {
+                    int32_t num = clamp_i32(cy - y_far, 0, denom);
+                    t_q8 = (num * 256) / denom; /* 0..256 */
+                }
+                /* scale 0.70..1.00 */
+                int32_t scale_q8 = 179 + ((t_q8 * 77) / 256);
+                r_draw = (BALL_R * scale_q8) / 256;
+                if (r_draw < 10) r_draw = 10;
+                if (r_draw > BALL_R) r_draw = BALL_R;
+            }
+
+            par_lcd_s035_draw_ball_shadow(cx, cy, r_draw);
+            par_lcd_s035_draw_silver_ball(cx, cy, r_draw, frame++, glint);
 #endif
 
             prev_x = cx;

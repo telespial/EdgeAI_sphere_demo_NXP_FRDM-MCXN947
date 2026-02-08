@@ -221,6 +221,37 @@ void par_lcd_s035_draw_filled_circle(int32_t cx, int32_t cy, int32_t r, uint16_t
     }
 }
 
+void par_lcd_s035_draw_pixel(int32_t x, int32_t y, uint16_t rgb565)
+{
+    if (x < 0 || y < 0) return;
+    if (x >= (int32_t)EDGEAI_LCD_WIDTH || y >= (int32_t)EDGEAI_LCD_HEIGHT) return;
+
+    uint16_t p = rgb565;
+    ST7796S_SelectArea(&s_lcdHandle, (uint16_t)x, (uint16_t)y, (uint16_t)x, (uint16_t)y);
+    s_memWriteDone = false;
+    ST7796S_WritePixels(&s_lcdHandle, &p, 1);
+    lcd_wait_write_done();
+}
+
+void par_lcd_s035_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565)
+{
+    /* Bresenham (thin 1px). Intended for small UI primitives, not large filled areas. */
+    int32_t dx = (x1 >= x0) ? (x1 - x0) : (x0 - x1);
+    int32_t sx = (x0 < x1) ? 1 : -1;
+    int32_t dy = (y1 >= y0) ? (y0 - y1) : (y1 - y0); /* negative */
+    int32_t sy = (y0 < y1) ? 1 : -1;
+    int32_t err = dx + dy;
+
+    for (;;)
+    {
+        par_lcd_s035_draw_pixel(x0, y0, rgb565);
+        if (x0 == x1 && y0 == y1) break;
+        int32_t e2 = err << 1;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
 void par_lcd_s035_fill_rect(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565)
 {
     if (x1 < x0 || y1 < y0) return;
