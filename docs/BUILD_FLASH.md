@@ -53,6 +53,16 @@ Then flash:
 ./tools/flash_frdmmcxn947.sh
 ```
 
+## Git Guardrails (Recommended)
+Restore-point tags should be treated as immutable. To prevent accidental force-updates/deletes of
+`GOLDEN*`, `RESCUE*`, and `BACKUP*` tags from your local machine, install the repo's git hooks:
+
+```bash
+./tools/install_git_hooks.sh
+```
+
+This is a local guard only; also enable tag protection rules on the GitHub remote.
+
 ## Serial (Optional)
 The MCU-Link VCOM interface typically enumerates as `/dev/ttyACM0`:
 ```bash

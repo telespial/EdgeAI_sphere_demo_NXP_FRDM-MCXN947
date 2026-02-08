@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Guard against force-updating or deleting "restore point" tags.
+# This is a LOCAL hook; real enforcement must also be configured on the remote (GitHub tag protection).
+#
+# Git passes lines on stdin:
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+#
+# References:
+# - "remote_sha" is all-zeros when creating a new ref on the remote.
+# - "local_sha" is all-zeros when deleting a ref on the remote.
+
+remote_name="${1:-}"
+remote_url="${2:-}"
+(void)remote_name >/dev/null 2>&1 || true
+(void)remote_url >/dev/null 2>&1 || true
+
+is_all_zeros() {
+  local s="$1"
+  [[ "$s" =~ ^0+$ ]]
+}
+
+is_protected_tag() {
+  local tag="$1"
+  case "$tag" in
+    GOLDEN*|RESCUE*|BACKUP*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+fail=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Only care about tags.
+  if [[ "$remote_ref" != refs/tags/* ]]; then
+    continue
+  fi
+
+  tag="${remote_ref#refs/tags/}"
+
+  if ! is_protected_tag "$tag"; then
+    continue
+  fi
+
+  # Deleting an existing protected tag.
+  if is_all_zeros "$local_sha" && ! is_all_zeros "$remote_sha"; then
+    echo "ERROR: refusing to delete protected tag '$tag' ($remote_sha)." >&2
+    fail=1
+    continue
+  fi
+
+  # Force-updating an existing protected tag.
+  if ! is_all_zeros "$local_sha" && ! is_all_zeros "$remote_sha" && [[ "$local_sha" != "$remote_sha" ]]; then
+    echo "ERROR: refusing to move protected tag '$tag' from $remote_sha to $local_sha." >&2
+    echo "  Create a new immutable tag (e.g. GOLDEN_LOCK_..._<shortsha>) and update docs instead." >&2
+    fail=1
+    continue
+  fi
+done
+
+if [[ "$fail" -ne 0 ]]; then
+  exit 1
+fi
+
+exit 0
+
