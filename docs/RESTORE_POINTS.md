@@ -26,6 +26,13 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: tilt-controlled silver ball with shadow + trails (raster renderer)
 - Notes: keep this as the baseline restore point if anything breaks.
 
+### 2026-02-08 Environment Walls + Axes (Background Preserved)
+- Tag: `milestone_env_walls_axes_v1`
+- Commit: `bcdd905e277369efb180a5554b32668e071853c3`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: adds a clipped wireframe “room” (walls + long axes) and updates ball/shadow raster drawing to avoid wiping background lines.
+- Notes: this is the restore point to return to if “ball disappears” or walls/axes stop drawing correctly.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
@@ -33,4 +40,3 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Hardware:
 - Behavior:
 - Notes:
-
