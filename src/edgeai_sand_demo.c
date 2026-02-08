@@ -389,33 +389,80 @@ int main(void)
             trail_y[trail_head] = (int16_t)cy;
             trail_head = (trail_head + 1u) % TRAIL_N;
 
-            /* Dirty rect: cover previous and current ball + trail area. */
-            int32_t minx_r = cx, miny_r = cy, maxx_r = cx, maxy_r = cy;
+            /* Dirty rect: cover previous+current ball, shadow, and all trail dots.
+             * Using a generic "pad" is error-prone because the shadow is offset and wider/taller
+             * than the sphere. Compute a conservative bbox instead.
+             */
+            const int32_t dot_r_max = 2;
+            const int32_t sh_offx = (BALL_R / 4);
+            const int32_t sh_offy = (BALL_R + (BALL_R / 2) + 8);
+            const int32_t sh_rx = (BALL_R + 18);
+            const int32_t sh_ry = ((BALL_R / 2) + 10);
+
+            int32_t minx_r = cx - BALL_R;
+            int32_t maxx_r = cx + BALL_R;
+            int32_t miny_r = cy - BALL_R;
+            int32_t maxy_r = cy + BALL_R;
+
+            /* Current shadow bbox */
+            {
+                int32_t sx0 = (cx + sh_offx) - sh_rx;
+                int32_t sx1 = (cx + sh_offx) + sh_rx;
+                int32_t sy0 = (cy + sh_offy) - sh_ry;
+                int32_t sy1 = (cy + sh_offy) + sh_ry;
+                if (sx0 < minx_r) minx_r = sx0;
+                if (sx1 > maxx_r) maxx_r = sx1;
+                if (sy0 < miny_r) miny_r = sy0;
+                if (sy1 > maxy_r) maxy_r = sy1;
+            }
+
+            /* Previous ball + shadow bbox */
+            {
+                int32_t px = prev_x;
+                int32_t py = prev_y;
+                int32_t bx0 = px - BALL_R;
+                int32_t bx1 = px + BALL_R;
+                int32_t by0 = py - BALL_R;
+                int32_t by1 = py + BALL_R;
+                if (bx0 < minx_r) minx_r = bx0;
+                if (bx1 > maxx_r) maxx_r = bx1;
+                if (by0 < miny_r) miny_r = by0;
+                if (by1 > maxy_r) maxy_r = by1;
+
+                int32_t sx0 = (px + sh_offx) - sh_rx;
+                int32_t sx1 = (px + sh_offx) + sh_rx;
+                int32_t sy0 = (py + sh_offy) - sh_ry;
+                int32_t sy1 = (py + sh_offy) + sh_ry;
+                if (sx0 < minx_r) minx_r = sx0;
+                if (sx1 > maxx_r) maxx_r = sx1;
+                if (sy0 < miny_r) miny_r = sy0;
+                if (sy1 > maxy_r) maxy_r = sy1;
+            }
+
+            /* Trail dots (include max dot radius) */
             for (int i = 0; i < TRAIL_N; i++)
             {
                 int32_t tx = trail_x[i];
                 int32_t ty = trail_y[i];
-                if (tx < minx_r) minx_r = tx;
-                if (ty < miny_r) miny_r = ty;
-                if (tx > maxx_r) maxx_r = tx;
-                if (ty > maxy_r) maxy_r = ty;
+                if ((tx - dot_r_max) < minx_r) minx_r = (tx - dot_r_max);
+                if ((tx + dot_r_max) > maxx_r) maxx_r = (tx + dot_r_max);
+                if ((ty - dot_r_max) < miny_r) miny_r = (ty - dot_r_max);
+                if ((ty + dot_r_max) > maxy_r) maxy_r = (ty + dot_r_max);
             }
-            if (removed_tx < minx_r) minx_r = removed_tx;
-            if (removed_ty < miny_r) miny_r = removed_ty;
-            if (removed_tx > maxx_r) maxx_r = removed_tx;
-            if (removed_ty > maxy_r) maxy_r = removed_ty;
-            if (prev_x < minx_r) minx_r = prev_x;
-            if (prev_y < miny_r) miny_r = prev_y;
-            if (prev_x > maxx_r) maxx_r = prev_x;
-            if (prev_y > maxy_r) maxy_r = prev_y;
 
-            int32_t pad = BALL_R + 30;
-            int32_t x0 = clamp_i32(minx_r - pad, 0, LCD_W - 1);
-            int32_t y0 = clamp_i32(miny_r - pad, 0, LCD_H - 1);
-            int32_t x1 = clamp_i32(maxx_r + pad, 0, LCD_W - 1);
-            int32_t y1 = clamp_i32(maxy_r + pad, 0, LCD_H - 1);
+            /* Removed dot */
+            if ((removed_tx - dot_r_max) < minx_r) minx_r = (removed_tx - dot_r_max);
+            if ((removed_tx + dot_r_max) > maxx_r) maxx_r = (removed_tx + dot_r_max);
+            if ((removed_ty - dot_r_max) < miny_r) miny_r = (removed_ty - dot_r_max);
+            if ((removed_ty + dot_r_max) > maxy_r) maxy_r = (removed_ty + dot_r_max);
+
+            int32_t x0 = clamp_i32(minx_r, 0, LCD_W - 1);
+            int32_t y0 = clamp_i32(miny_r, 0, LCD_H - 1);
+            int32_t x1 = clamp_i32(maxx_r, 0, LCD_W - 1);
+            int32_t y1 = clamp_i32(maxy_r, 0, LCD_H - 1);
 
             /* Clamp tile size; if motion ever causes a large dirty rect, cap it to a fixed size. */
+#if EDGEAI_RENDER_SINGLE_BLIT
             int32_t w = x1 - x0 + 1;
             int32_t h = y1 - y0 + 1;
             if (w > TILE_MAX_W || h > TILE_MAX_H)
@@ -431,6 +478,7 @@ int main(void)
                 w = x1 - x0 + 1;
                 h = y1 - y0 + 1;
             }
+#endif
 
 #if EDGEAI_RENDER_SINGLE_BLIT
             /* Render into tile (black background) then blit once to avoid flicker/tearing lines. */
