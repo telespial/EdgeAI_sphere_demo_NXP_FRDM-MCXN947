@@ -7,6 +7,12 @@ Current demo (known-good):
 - NPU is integrated via TFLM + Neutron backend and can modulate the ball's specular "glint".
 - Dune background derived from `downloads/sanddune.jpg` (rendered behind the ball).
 
+Current rendering notes:
+- The demo uses a single-blit tile renderer by default (`EDGEAI_RENDER_SINGLE_BLIT=1`) to avoid tearing and to keep the background behind the ball.
+- Depending on the restore point you select, the dune background may either:
+  - render full-screen at boot, or
+  - start black and “reveal” as the ball moves (dirty-rect tiles only).
+
 ## Known-Good Revision (Golden)
 If anything breaks, return to this exact revision:
 - Tag: `milestone_raster_flicker_npu_v9`
@@ -43,6 +49,13 @@ Regenerate after changing the source image:
 ```bash
 python3 tools/gen_dune_bg.py --in downloads/sanddune.jpg --out src/dune_bg.h
 ```
+
+## Background Modes
+Two background modes exist as restore points:
+- Full-screen at boot: `milestone_dune_bg_fullscreen_v1`
+- Tile-only reveal: `milestone_dune_bg_tile_reveal_v1`
+
+For the complete list, see `docs/RESTORE_POINTS.md`.
 
 ## NPU Notes
 By default, the firmware initializes the NPU stack but does not run inference (to avoid any platform-specific stalls).

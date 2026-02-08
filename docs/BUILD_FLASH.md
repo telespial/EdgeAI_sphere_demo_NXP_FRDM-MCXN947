@@ -52,3 +52,9 @@ Then flash:
 ```bash
 ./tools/flash_frdmmcxn947.sh
 ```
+
+## Serial (Optional)
+The MCU-Link VCOM interface typically enumerates as `/dev/ttyACM0`:
+```bash
+timeout 10 cat /dev/ttyACM0
+```

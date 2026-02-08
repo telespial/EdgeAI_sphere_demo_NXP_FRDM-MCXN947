@@ -12,6 +12,10 @@ Probe by reading:
 - `WHO_AM_I` register `0x13`
 - Expected value: `0x86` (FXLS8974CF)
 
+## Required Clickboard Mode (Important)
+Accel 4 Click supports both I2C and SPI. Make sure the Click board is configured for **I2C** (COMM SEL).
+On some Click boards this is done via solder jumpers (not a plug-in jumper).
+
 ## Minimal Init Sequence (Draft)
 1. Put device in Standby (ACTIVE=0 in `SENS_CONFIG1` @ `0x15`) before changing most config.
 2. Configure range (FSR in `SENS_CONFIG1[2:1]`).
@@ -22,4 +26,3 @@ Probe by reading:
 ## Notes
 - We start with LE/BE = little-endian, right-justified unpacking (common default).
 - Later: add INT1 data-ready route if needed (INT_EN/INT_PIN_SEL).
-
