@@ -217,6 +217,15 @@ int main(void)
     const int32_t dt_fallback_q16 = (int32_t)((1u << 16) / 60u); /* ~16.67ms */
     const uint32_t dt_fallback_us = 16667u;
 
+    /* Fixed-step simulation + throttled rendering.
+     * Without this, if the loop runs very fast (small dt), the per-iteration damping can
+     * effectively "lock" velocity near zero and the ball looks stuck.
+     */
+    const int32_t sim_step_q16 = (int32_t)((1u << 16) / 120u); /* 120 Hz physics */
+    int32_t sim_accum_q16 = 0;
+    uint32_t render_accum_us = 0;
+    const uint32_t render_period_us = 16667u; /* ~60 FPS */
+
     for (;;)
     {
         bool accel_ok = fxls8974_read_sample_12b(&dev, &s);
@@ -254,6 +263,8 @@ int main(void)
         if (dt_q16 > (int32_t)(1u << 16)) dt_q16 = (int32_t)(1u << 16);
         npu_accum_us += dt_us;
         stats_accum_us += dt_us;
+        render_accum_us += dt_us;
+        sim_accum_q16 += dt_q16;
 
         int32_t ax = (int32_t)s.x;
         int32_t ay = (int32_t)s.y;
@@ -276,35 +287,51 @@ int main(void)
          */
         uint16_t bg = (accel_fail > 0) ? 0x1800u /* dark red */ : 0x0000u;
 
-        /* Physics: treat accel as "gravity" and integrate velocity/position. */
-        /* Increase gain so even moderate tilts visibly move the ball. */
+        /* Physics: fixed-step integration at sim_step_q16. */
         const int32_t a_px_s2 = 8000; /* px/s^2 at ~1g */
         const int32_t a_scale_q16 = (int32_t)(((int64_t)a_px_s2 << 16) / ACCEL_MAP_DENOM);
         int32_t ax_a_q16 = ax_lp * a_scale_q16;
         int32_t ay_a_q16 = ay_lp * a_scale_q16;
 
-        vx_q16 += (int32_t)(((int64_t)ax_a_q16 * dt_q16) >> 16);
-        vy_q16 += (int32_t)(((int64_t)ay_a_q16 * dt_q16) >> 16);
-
-        /* Damping (Q16). */
-        const int32_t damp = 64200; /* ~0.98 */
-        vx_q16 = (int32_t)(((int64_t)vx_q16 * damp) >> 16);
-        vy_q16 = (int32_t)(((int64_t)vy_q16 * damp) >> 16);
-
-        x_q16 += (int32_t)(((int64_t)vx_q16 * dt_q16) >> 16);
-        y_q16 += (int32_t)(((int64_t)vy_q16 * dt_q16) >> 16);
-
-        /* Bounds + bounce. */
         const int32_t minx = BALL_R + 2;
         const int32_t miny = BALL_R + 2;
         const int32_t maxx = (LCD_W - 1) - (BALL_R + 2);
         const int32_t maxy = (LCD_H - 1) - (BALL_R + 2);
+
+        int iter = 0;
+        while ((sim_accum_q16 >= sim_step_q16) && (iter < 6))
+        {
+            sim_accum_q16 -= sim_step_q16;
+            iter++;
+
+            vx_q16 += (int32_t)(((int64_t)ax_a_q16 * sim_step_q16) >> 16);
+            vy_q16 += (int32_t)(((int64_t)ay_a_q16 * sim_step_q16) >> 16);
+
+            /* Damping (Q16) tuned for the fixed sim rate. */
+            const int32_t damp = 65000; /* ~0.992 @ 120 Hz */
+            vx_q16 = (int32_t)(((int64_t)vx_q16 * damp) >> 16);
+            vy_q16 = (int32_t)(((int64_t)vy_q16 * damp) >> 16);
+
+            x_q16 += (int32_t)(((int64_t)vx_q16 * sim_step_q16) >> 16);
+            y_q16 += (int32_t)(((int64_t)vy_q16 * sim_step_q16) >> 16);
+
+            int32_t cx_s = x_q16 >> 16;
+            int32_t cy_s = y_q16 >> 16;
+            if (cx_s < minx) { cx_s = minx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
+            if (cx_s > maxx) { cx_s = maxx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
+            if (cy_s < miny) { cy_s = miny; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+            if (cy_s > maxy) { cy_s = maxy; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+        }
+
         int32_t cx = x_q16 >> 16;
         int32_t cy = y_q16 >> 16;
-        if (cx < minx) { cx = minx; x_q16 = cx << 16; vx_q16 = -(vx_q16 * 3) / 4; }
-        if (cx > maxx) { cx = maxx; x_q16 = cx << 16; vx_q16 = -(vx_q16 * 3) / 4; }
-        if (cy < miny) { cy = miny; y_q16 = cy << 16; vy_q16 = -(vy_q16 * 3) / 4; }
-        if (cy > maxy) { cy = maxy; y_q16 = cy << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+
+        if (render_accum_us < render_period_us)
+        {
+            /* Skip expensive LCD writes; keep sim responsive. */
+            continue;
+        }
+        render_accum_us = 0;
 
         /* Update trail ring. */
         trail_x[trail_head] = (int16_t)cx;
