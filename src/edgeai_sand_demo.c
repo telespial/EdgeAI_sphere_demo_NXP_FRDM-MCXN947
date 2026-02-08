@@ -20,7 +20,36 @@
 #define LCD_W 480
 #define LCD_H 320
 
-#define BALL_R 20
+/* Ball radius tuning.
+ * We apply a simple depth cue: ball gets smaller toward the top ("far") and larger toward the
+ * bottom ("near") to better match the dune background's perspective.
+ */
+#define BALL_R_BASE 20
+#define BALL_R_MIN  12
+#define BALL_R_MAX  34
+
+static int32_t edgeai_ball_r_for_y(int32_t cy)
+{
+    /* Map screen y to [0..256] where 0 is "far" and 256 is "near". */
+    const int32_t y_far = 26;
+    const int32_t y_near = LCD_H - 26;
+    int32_t denom = (y_near - y_far);
+    int32_t t_q8 = 256;
+    if (denom > 0)
+    {
+        int32_t num = cy - y_far;
+        if (num < 0) num = 0;
+        if (num > denom) num = denom;
+        t_q8 = (num * 256) / denom;
+    }
+
+    /* Radius ramps from MIN..MAX. */
+    int32_t r = BALL_R_MIN + ((t_q8 * (BALL_R_MAX - BALL_R_MIN)) / 256);
+    if (r < BALL_R_MIN) r = BALL_R_MIN;
+    if (r > BALL_R_MAX) r = BALL_R_MAX;
+    (void)BALL_R_BASE;
+    return r;
+}
 
 /* Empirically, the raw 12-bit output here is roughly on the order of ~512 counts per 1g
  * at the current FXLS8974 config. We use this as the full-scale tilt mapping value.
@@ -357,10 +386,11 @@ int main(void)
         int32_t ax_a_q16 = (int32_t)(((int64_t)ax_soft_q15 * a_px_s2) << 1);
         int32_t ay_a_q16 = (int32_t)(((int64_t)ay_soft_q15 * a_px_s2) << 1);
 
-        const int32_t minx = BALL_R + 2;
-        const int32_t miny = BALL_R + 2;
-        const int32_t maxx = (LCD_W - 1) - (BALL_R + 2);
-        const int32_t maxy = (LCD_H - 1) - (BALL_R + 2);
+        /* Use the max radius here so the "near" ball can't clip the screen edge. */
+        const int32_t minx = BALL_R_MAX + 2;
+        const int32_t miny = BALL_R_MAX + 2;
+        const int32_t maxx = (LCD_W - 1) - (BALL_R_MAX + 2);
+        const int32_t maxy = (LCD_H - 1) - (BALL_R_MAX + 2);
 
         int iter = 0;
         while ((sim_accum_q16 >= sim_step_q16) && (iter < 6))
@@ -389,6 +419,7 @@ int main(void)
 
         int32_t cx = x_q16 >> 16;
         int32_t cy = y_q16 >> 16;
+        int32_t r_draw = edgeai_ball_r_for_y(cy);
 
         bool do_render = (render_accum_us >= render_period_us);
         if (do_render) render_accum_us = 0;
@@ -427,7 +458,7 @@ int main(void)
             if (prev_x > maxx_r) maxx_r = prev_x;
             if (prev_y > maxy_r) maxy_r = prev_y;
 
-            int32_t pad = BALL_R + 30;
+            int32_t pad = BALL_R_MAX + 30;
             int32_t x0 = clamp_i32(minx_r - pad, 0, LCD_W - 1);
             int32_t y0 = clamp_i32(miny_r - pad, 0, LCD_H - 1);
             int32_t x1 = clamp_i32(maxx_r + pad, 0, LCD_W - 1);
@@ -465,8 +496,9 @@ int main(void)
                 sw_render_filled_circle(tile, (uint32_t)w, (uint32_t)h, x0, y0, tx, ty, r0, c);
             }
 
-            sw_render_ball_shadow(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R);
-            sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R, frame++, glint);
+            /* Depth cue: scale the ball/shadow with y-position. */
+            sw_render_ball_shadow(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw);
+            sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw, frame++, glint);
 
             par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
 #else
@@ -485,8 +517,9 @@ int main(void)
                 par_lcd_s035_draw_filled_circle(tx, ty, r0, c);
             }
 
-            par_lcd_s035_draw_ball_shadow(cx, cy, BALL_R);
-            par_lcd_s035_draw_silver_ball(cx, cy, BALL_R, frame++, glint);
+            /* Depth cue: scale the ball/shadow with y-position. */
+            par_lcd_s035_draw_ball_shadow(cx, cy, r_draw);
+            par_lcd_s035_draw_silver_ball(cx, cy, r_draw, frame++, glint);
 #endif
 
             prev_x = cx;

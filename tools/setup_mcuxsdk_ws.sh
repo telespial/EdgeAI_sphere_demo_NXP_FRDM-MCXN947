@@ -42,6 +42,10 @@ echo "[setup] west update (this can take a while)"
     fi
     sleep 2
   done
+  echo "[setup] shallow west update failed; retrying without --depth=1 (can be slower, but avoids missing pinned commits)" >&2
+  if west update; then
+    exit 0
+  fi
   echo "[setup] west update failed after retries; re-run this script." >&2
   exit 1
 )

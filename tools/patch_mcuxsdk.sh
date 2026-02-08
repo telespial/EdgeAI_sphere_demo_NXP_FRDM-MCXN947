@@ -12,23 +12,21 @@ EDGEAI_CMAKELISTS="$WS_DIR/mcuxsdk/examples/demo_apps/edgeai_sand_demo/CMakeList
 
 echo "[patch] ws: $WS_DIR"
 
-if [[ ! -f "$KISS_FASTFIR_C" ]]; then
-  echo "[patch] skip: not found: $KISS_FASTFIR_C"
-  exit 0
-fi
-
-# GCC -Werror + -Wunused-variable can make this upstream "tools" source fail.
-# Make it deterministic and idempotent.
-if grep -q "__attribute__\\s*(([[:space:]]*unused[[:space:]]*))" "$KISS_FASTFIR_C"; then
-  echo "[patch] ok: kiss_fastfir.c already patched"
-  exit 0
-fi
-
-if grep -qE '^static int verbose=0;[[:space:]]*$' "$KISS_FASTFIR_C"; then
-  echo "[patch] fix: kiss_fastfir.c unused verbose"
-  perl -pi -e 's/^static int verbose=0;\\s*$/\\/\\* Patched by EdgeAI_sand_demo: MCUX SDK builds with -Werror; mark unused. \\*\\/\\nstatic int verbose __attribute__((unused)) = 0;/' "$KISS_FASTFIR_C"
+if [[ -f "$KISS_FASTFIR_C" ]]; then
+  # GCC -Werror + -Wunused-variable can make this upstream "tools" source fail.
+  # Make it deterministic and idempotent.
+  if grep -q "__attribute__\\s*(([[:space:]]*unused[[:space:]]*))" "$KISS_FASTFIR_C"; then
+    echo "[patch] ok: kiss_fastfir.c already patched"
+  else
+    if grep -qE '^static int verbose=0;[[:space:]]*$' "$KISS_FASTFIR_C"; then
+      echo "[patch] fix: kiss_fastfir.c unused verbose"
+      perl -0777 -pi -e 's|^static int verbose=0;\\s*$|/* Patched by EdgeAI_sand_demo: MCUX SDK builds with -Werror; mark unused. */\\nstatic int verbose __attribute__((unused)) = 0;|m' "$KISS_FASTFIR_C"
+    else
+      echo "[patch] warn: kiss_fastfir.c verbose line not found; leaving unmodified"
+    fi
+  fi
 else
-  echo "[patch] warn: kiss_fastfir.c verbose line not found; leaving unmodified"
+  echo "[patch] skip: not found: $KISS_FASTFIR_C"
 fi
 
 # Ensure the example wrapper pulls in repo sources (when the workspace was created
