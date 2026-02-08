@@ -68,6 +68,12 @@ void sw_render_dune_bg(uint16_t *dst, uint32_t w, uint32_t h,
     }
 }
 
+void sw_render_dune_bg_line(uint16_t *dst, uint32_t w, int32_t x0, int32_t y)
+{
+    /* Convenience wrapper for single-scanline blits (boot-time full draw). */
+    sw_render_dune_bg(dst, w, 1u, x0, y);
+}
+
 void sw_render_filled_circle(uint16_t *dst, uint32_t w, uint32_t h,
                              int32_t x0, int32_t y0,
                              int32_t cx, int32_t cy, int32_t r, uint16_t rgb565)

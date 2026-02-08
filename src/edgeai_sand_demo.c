@@ -167,7 +167,17 @@ int main(void)
         /* Can't proceed without display in this demo. */
         for (;;) {}
     }
-    par_lcd_s035_fill(0x0000u); /* boot stays black (dune reveals as you roll) */
+    /* Render the full background at boot so the display doesn't start black.
+     * Per-frame we still only update a dirty-rect tile for performance.
+     */
+    {
+        static uint16_t line[LCD_W];
+        for (int32_t y = 0; y < LCD_H; y++)
+        {
+            sw_render_dune_bg_line(line, LCD_W, 0, y);
+            par_lcd_s035_blit_rect(0, y, LCD_W - 1, y, line);
+        }
+    }
 
     /* Print banner early; previous hangs made it hard to tell if firmware was alive. */
     PRINTF("EDGEAI: boot %s %s\r\n", __DATE__, __TIME__);
@@ -386,12 +396,6 @@ int main(void)
         int32_t ax_a_q16 = (int32_t)(((int64_t)ax_soft_q15 * a_px_s2) << 1);
         int32_t ay_a_q16 = (int32_t)(((int64_t)ay_soft_q15 * a_px_s2) << 1);
 
-        /* Use the max radius here so the "near" ball can't clip the screen edge. */
-        const int32_t minx = BALL_R_MAX + 2;
-        const int32_t miny = BALL_R_MAX + 2;
-        const int32_t maxx = (LCD_W - 1) - (BALL_R_MAX + 2);
-        const int32_t maxy = (LCD_H - 1) - (BALL_R_MAX + 2);
-
         int iter = 0;
         while ((sim_accum_q16 >= sim_step_q16) && (iter < 6))
         {
@@ -411,10 +415,27 @@ int main(void)
 
             int32_t cx_s = x_q16 >> 16;
             int32_t cy_s = y_q16 >> 16;
-            if (cx_s < minx) { cx_s = minx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
-            if (cx_s > maxx) { cx_s = maxx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
-            if (cy_s < miny) { cy_s = miny; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
-            if (cy_s > maxy) { cy_s = maxy; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+
+            /* Keep the ball on-screen using the *current* radius. This avoids the "invisible square
+             * bounds" feel when the ball shrinks with perspective.
+             *
+             * Note: r depends on y, so the y clamp is mildly implicit; a couple of iterations is plenty.
+             */
+            for (int k = 0; k < 2; k++)
+            {
+                int32_t r_s = edgeai_ball_r_for_y(cy_s);
+                int32_t miny = r_s + 2;
+                int32_t maxy = (LCD_H - 1) - (r_s + 2);
+                if (cy_s < miny) { cy_s = miny; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+                if (cy_s > maxy) { cy_s = maxy; y_q16 = cy_s << 16; vy_q16 = -(vy_q16 * 3) / 4; }
+            }
+            {
+                int32_t r_s = edgeai_ball_r_for_y(cy_s);
+                int32_t minx = r_s + 2;
+                int32_t maxx = (LCD_W - 1) - (r_s + 2);
+                if (cx_s < minx) { cx_s = minx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
+                if (cx_s > maxx) { cx_s = maxx; x_q16 = cx_s << 16; vx_q16 = -(vx_q16 * 3) / 4; }
+            }
         }
 
         int32_t cx = x_q16 >> 16;

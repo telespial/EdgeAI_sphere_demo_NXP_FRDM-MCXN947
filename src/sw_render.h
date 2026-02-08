@@ -20,6 +20,8 @@ static inline uint16_t sw_pack_rgb565_u8(uint32_t r8, uint32_t g8, uint32_t b8)
 void sw_render_clear(uint16_t *dst, uint32_t w, uint32_t h, uint16_t rgb565);
 void sw_render_dune_bg(uint16_t *dst, uint32_t w, uint32_t h,
                        int32_t x0, int32_t y0);
+void sw_render_dune_bg_line(uint16_t *dst, uint32_t w,
+                            int32_t x0, int32_t y);
 void sw_render_filled_circle(uint16_t *dst, uint32_t w, uint32_t h,
                              int32_t x0, int32_t y0,
                              int32_t cx, int32_t cy, int32_t r, uint16_t rgb565);
