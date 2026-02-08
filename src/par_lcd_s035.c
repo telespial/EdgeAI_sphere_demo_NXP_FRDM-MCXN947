@@ -223,79 +223,42 @@ void par_lcd_s035_draw_filled_circle(int32_t cx, int32_t cy, int32_t r, uint16_t
 
 void par_lcd_s035_draw_pixel(int32_t x, int32_t y, uint16_t rgb565)
 {
-    /* Use the rectangle fill path so we keep a single implementation for pixel writes. */
-    par_lcd_s035_fill_rect(x, y, x, y, rgb565);
+    if (x < 0 || y < 0) return;
+    if (x >= (int32_t)EDGEAI_LCD_WIDTH || y >= (int32_t)EDGEAI_LCD_HEIGHT) return;
+
+    uint16_t p = rgb565;
+    ST7796S_SelectArea(&s_lcdHandle, (uint16_t)x, (uint16_t)y, (uint16_t)x, (uint16_t)y);
+    s_memWriteDone = false;
+    ST7796S_WritePixels(&s_lcdHandle, &p, 1);
+    lcd_wait_write_done();
 }
 
 void par_lcd_s035_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565)
 {
-    /* Fast paths */
-    if (x0 == x1)
-    {
-        par_lcd_s035_fill_rect(x0, y0, x1, y1, rgb565);
-        return;
-    }
-    if (y0 == y1)
-    {
-        par_lcd_s035_fill_rect(x0, y0, x1, y1, rgb565);
-        return;
-    }
-
-    /* Bresenham with horizontal span coalescing (reduces LCD transfers). */
+    /* Bresenham (thin 1px). Intended for small UI primitives, not large filled areas. */
     int32_t dx = (x1 >= x0) ? (x1 - x0) : (x0 - x1);
     int32_t sx = (x0 < x1) ? 1 : -1;
     int32_t dy = (y1 >= y0) ? (y0 - y1) : (y1 - y0); /* negative */
     int32_t sy = (y0 < y1) ? 1 : -1;
     int32_t err = dx + dy;
 
-    int32_t run_y = y0;
-    int32_t run_x0 = x0;
-    int32_t run_x1 = x0;
-
     for (;;)
     {
-        if (y0 == run_y)
-        {
-            if (x0 < run_x0) run_x0 = x0;
-            if (x0 > run_x1) run_x1 = x0;
-        }
-        else
-        {
-            par_lcd_s035_fill_rect(run_x0, run_y, run_x1, run_y, rgb565);
-            run_y = y0;
-            run_x0 = x0;
-            run_x1 = x0;
-        }
-
+        par_lcd_s035_draw_pixel(x0, y0, rgb565);
         if (x0 == x1 && y0 == y1) break;
         int32_t e2 = err << 1;
         if (e2 >= dy) { err += dy; x0 += sx; }
         if (e2 <= dx) { err += dx; y0 += sy; }
     }
-
-    par_lcd_s035_fill_rect(run_x0, run_y, run_x1, run_y, rgb565);
 }
 
 void par_lcd_s035_fill_rect(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565)
 {
-    /* Accept unordered coordinates. */
-    if (x0 > x1)
-    {
-        int32_t t = x0;
-        x0 = x1;
-        x1 = t;
-    }
-    if (y0 > y1)
-    {
-        int32_t t = y0;
-        y0 = y1;
-        y1 = t;
-    }
+    if (x1 < x0 || y1 < y0) return;
     if (x0 < 0) x0 = 0;
     if (y0 < 0) y0 = 0;
     if (x1 >= (int32_t)EDGEAI_LCD_WIDTH) x1 = (int32_t)EDGEAI_LCD_WIDTH - 1;
     if (y1 >= (int32_t)EDGEAI_LCD_HEIGHT) y1 = (int32_t)EDGEAI_LCD_HEIGHT - 1;
-    if (x1 < x0 || y1 < y0) return;
 
     uint32_t w = (uint32_t)(x1 - x0 + 1);
     static uint16_t buf[EDGEAI_LCD_WIDTH];
@@ -344,38 +307,51 @@ static inline uint32_t isqrt_u32(uint32_t x)
 
 void par_lcd_s035_draw_ball_shadow(int32_t cx, int32_t cy, int32_t r)
 {
-    /* Ambient-occlusion spot. Only write inside the ellipse so we don't erase background lines. */
+    /* Not a physical shadow on black; it's a soft AO spot to add depth. */
     int32_t sh_cx = cx + (r / 4);
     int32_t sh_cy = cy + r + (r / 2) + 8;
     int32_t rx = r + 18;
     int32_t ry = (r / 2) + 10;
-    if (rx <= 0 || ry <= 0) return;
-
-    const uint16_t c = 0x1082u; /* very dark gray */
 
     int32_t y0 = sh_cy - ry;
     int32_t y1 = sh_cy + ry;
     if (y0 < 0) y0 = 0;
     if (y1 >= (int32_t)EDGEAI_LCD_HEIGHT) y1 = (int32_t)EDGEAI_LCD_HEIGHT - 1;
 
-    const uint32_t ry2 = (uint32_t)(ry * ry);
+    static uint16_t line[EDGEAI_LCD_WIDTH];
     for (int32_t y = y0; y <= y1; y++)
     {
         int32_t dy = y - sh_cy;
         uint32_t dy2 = (uint32_t)(dy * dy);
-        if (dy2 > ry2) continue;
 
-        /* dx = rx * sqrt(ry^2 - dy^2) / ry */
-        uint32_t s = isqrt_u32(ry2 - dy2); /* 0..ry */
-        int32_t dx = (int32_t)(((int64_t)rx * (int64_t)s) / (int64_t)ry);
-
-        int32_t x0 = sh_cx - dx;
-        int32_t x1 = sh_cx + dx;
+        int32_t x0 = sh_cx - rx;
+        int32_t x1 = sh_cx + rx;
         if (x0 < 0) x0 = 0;
         if (x1 >= (int32_t)EDGEAI_LCD_WIDTH) x1 = (int32_t)EDGEAI_LCD_WIDTH - 1;
-        if (x1 < x0) continue;
 
-        lcd_fill_span((uint16_t)x0, (uint16_t)y, (uint16_t)x1, c);
+        uint32_t w = (uint32_t)(x1 - x0 + 1);
+        if (w > EDGEAI_LCD_WIDTH) w = EDGEAI_LCD_WIDTH;
+        memset(line, 0, w * sizeof(line[0])); /* background is black */
+
+        for (int32_t x = x0; x <= x1; x++)
+        {
+            int32_t dx = x - sh_cx;
+            uint32_t dx2 = (uint32_t)(dx * dx);
+            /* ellipse distance in Q8: (dx^2/rx^2)+(dy^2/ry^2) */
+            uint32_t d = (dx2 * 256u) / (uint32_t)(rx * rx) + (dy2 * 256u) / (uint32_t)(ry * ry);
+            if (d >= 256u) continue;
+
+            uint32_t t = 256u - d; /* 0..255 */
+            /* AO spot is a faint bluish-gray so it's visible on black. */
+            uint32_t a = (t * 60u) / 255u; /* 0..60 */
+            uint16_t c = pack_rgb565_u8(a, a, a + (a / 3));
+            line[(uint32_t)(x - x0)] = c;
+        }
+
+        ST7796S_SelectArea(&s_lcdHandle, (uint16_t)x0, (uint16_t)y, (uint16_t)x1, (uint16_t)y);
+        s_memWriteDone = false;
+        ST7796S_WritePixels(&s_lcdHandle, line, w);
+        lcd_wait_write_done();
     }
 }
 
@@ -383,6 +359,12 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
 {
     (void)frame;
     if (r <= 0) return;
+
+    /* Ray-traced sphere shading for a single object (analytic ray/sphere). */
+    const int32_t x0 = (cx - r < 0) ? 0 : (cx - r);
+    const int32_t x1 = (cx + r >= (int32_t)EDGEAI_LCD_WIDTH) ? (int32_t)EDGEAI_LCD_WIDTH - 1 : (cx + r);
+    const int32_t y0 = (cy - r < 0) ? 0 : (cy - r);
+    const int32_t y1 = (cy + r >= (int32_t)EDGEAI_LCD_HEIGHT) ? (int32_t)EDGEAI_LCD_HEIGHT - 1 : (cy + r);
 
     static uint16_t line[EDGEAI_LCD_WIDTH];
 
@@ -393,31 +375,26 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
 
     const uint32_t r2 = (uint32_t)(r * r);
 
-    /* Ray-traced sphere shading for a single object (analytic ray/sphere).
-     * Only write spans that intersect the sphere so we don't erase background/walls.
-     */
-    const int32_t y0 = (cy - r < 0) ? 0 : (cy - r);
-    const int32_t y1 = (cy + r >= (int32_t)EDGEAI_LCD_HEIGHT) ? (int32_t)EDGEAI_LCD_HEIGHT - 1 : (cy + r);
-
     for (int32_t y = y0; y <= y1; y++)
     {
+        uint32_t w = (uint32_t)(x1 - x0 + 1);
+        if (w > EDGEAI_LCD_WIDTH) w = EDGEAI_LCD_WIDTH;
+        memset(line, 0, w * sizeof(line[0])); /* background black */
+
         int32_t dy = y - cy;
         int32_t dy2 = dy * dy;
         if ((uint32_t)dy2 > r2)
         {
             /* no pixels in this row */
-            continue;
+            goto write_row;
         }
 
         /* Compute max dx for this row. */
         uint32_t dx_max = isqrt_u32(r2 - (uint32_t)dy2);
         int32_t sx0 = cx - (int32_t)dx_max;
         int32_t sx1 = cx + (int32_t)dx_max;
-        if (sx0 < 0) sx0 = 0;
-        if (sx1 >= (int32_t)EDGEAI_LCD_WIDTH) sx1 = (int32_t)EDGEAI_LCD_WIDTH - 1;
-        if (sx1 < sx0) continue;
-
-        uint32_t w = (uint32_t)(sx1 - sx0 + 1);
+        if (sx0 < x0) sx0 = x0;
+        if (sx1 > x1) sx1 = x1;
 
         for (int32_t x = sx0; x <= sx1; x++)
         {
@@ -500,10 +477,11 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
                 }
             }
 
-            line[(uint32_t)(x - sx0)] = pack_rgb565_u8(r8, g8, b8);
+            line[(uint32_t)(x - x0)] = pack_rgb565_u8(r8, g8, b8);
         }
 
-        ST7796S_SelectArea(&s_lcdHandle, (uint16_t)sx0, (uint16_t)y, (uint16_t)sx1, (uint16_t)y);
+write_row:
+        ST7796S_SelectArea(&s_lcdHandle, (uint16_t)x0, (uint16_t)y, (uint16_t)x1, (uint16_t)y);
         s_memWriteDone = false;
         ST7796S_WritePixels(&s_lcdHandle, line, w);
         lcd_wait_write_done();
