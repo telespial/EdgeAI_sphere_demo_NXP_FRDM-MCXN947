@@ -210,6 +210,12 @@ int main(void)
     static uint16_t tile[TILE_MAX_W * TILE_MAX_H];
 #endif
 
+    /* Boot banner: keep it short and printf-lite compatible (avoid %ld). */
+    PRINTF("EDGEAI: tilt-ball fw %s %s (npu=%u render=%s)\r\n",
+           __DATE__, __TIME__,
+           (unsigned)(npu_ok ? 1u : 0u),
+           (EDGEAI_RENDER_SINGLE_BLIT ? "blit" : "raster"));
+
     /* Some MCXN947 configurations (or secure setups) can leave DWT->CYCCNT not advancing,
      * which makes dt==0 and "freezes" all motion. Keep a fixed timestep fallback so
      * the demo always behaves predictably.
@@ -485,11 +491,12 @@ int main(void)
             uint32_t fps = stats_frames;
             stats_accum_us = 0;
             stats_frames = 0;
-            PRINTF("fps=%u ax=%ld ay=%ld cx=%ld cy=%ld vx=%ld vy=%ld glint=%u npu=%u\r\n",
+            PRINTF("EDGEAI: fps=%u raw=(%d,%d,%d) lp=(%d,%d) pos=(%d,%d) v=(%d,%d) glint=%u npu=%u\r\n",
                    (unsigned)fps,
-                   (long)ax_lp, (long)ay_lp,
-                   (long)cx, (long)cy,
-                   (long)(vx_q16 >> 16), (long)(vy_q16 >> 16),
+                   (int)s.x, (int)s.y, (int)s.z,
+                   (int)ax_lp, (int)ay_lp,
+                   (int)cx, (int)cy,
+                   (int)(vx_q16 >> 16), (int)(vy_q16 >> 16),
                    (unsigned)glint,
                    (unsigned)(npu_ok ? 1u : 0u));
         }
