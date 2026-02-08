@@ -4,7 +4,20 @@ This repo is a hardware sandbox for FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click 
 
 Current demo (known-good):
 - Tilt-controlled "silver ball" with shadow and motion trails (480x320).
-- NPU is integrated via TFLM + Neutron backend and modulates the ball's specular "glint".
+- NPU is integrated via TFLM + Neutron backend and can modulate the ball's specular "glint".
+
+## Known-Good Revision (Golden)
+If anything breaks, return to this exact revision:
+- Tag: `milestone_raster_flicker_npu_v9`
+- Commit: `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
+
+Checkout + rebuild + flash:
+```bash
+git checkout milestone_raster_flicker_npu_v9
+MCUX_EXAMPLES_DIR="$PWD/mcuxsdk_ws_test/mcuxsdk/examples" ./sdk_example/install_mcux_overlay.sh
+ninja -C mcuxsdk_ws_test/build
+WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
+```
 
 Key folders:
 - `sdk_example/`: MCUX SDK example wrapper (built via `west`)
@@ -19,6 +32,10 @@ Key folders:
 
 Serial output (optional):
 - `timeout 10 cat /dev/ttyACM0`
+
+## NPU Notes
+By default, the firmware initializes the NPU stack but does not run inference (to avoid any platform-specific stalls).
+To enable inference, set `EDGEAI_ENABLE_NPU_INFERENCE=1` in `src/edgeai_sand_demo.c` and rebuild.
 
 ## Tuning / Orientation
 Accel axis mapping macros live in `src/edgeai_sand_demo.c`:
