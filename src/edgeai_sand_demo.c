@@ -332,99 +332,98 @@ int main(void)
         int32_t cx = x_q16 >> 16;
         int32_t cy = y_q16 >> 16;
 
-        if (render_accum_us < render_period_us)
+        bool do_render = (render_accum_us >= render_period_us);
+        if (do_render) render_accum_us = 0;
+
+        if (do_render)
         {
-            /* Skip expensive LCD writes; keep sim responsive. */
-            continue;
-        }
-        render_accum_us = 0;
+            /* Update trail ring. */
+            trail_x[trail_head] = (int16_t)cx;
+            trail_y[trail_head] = (int16_t)cy;
+            trail_head = (trail_head + 1u) % TRAIL_N;
 
-        /* Update trail ring. */
-        trail_x[trail_head] = (int16_t)cx;
-        trail_y[trail_head] = (int16_t)cy;
-        trail_head = (trail_head + 1u) % TRAIL_N;
+            /* Dirty rect: cover previous and current ball + trail area. */
+            int32_t minx_r = cx, miny_r = cy, maxx_r = cx, maxy_r = cy;
+            for (int i = 0; i < TRAIL_N; i++)
+            {
+                int32_t tx = trail_x[i];
+                int32_t ty = trail_y[i];
+                if (tx < minx_r) minx_r = tx;
+                if (ty < miny_r) miny_r = ty;
+                if (tx > maxx_r) maxx_r = tx;
+                if (ty > maxy_r) maxy_r = ty;
+            }
+            if (prev_x < minx_r) minx_r = prev_x;
+            if (prev_y < miny_r) miny_r = prev_y;
+            if (prev_x > maxx_r) maxx_r = prev_x;
+            if (prev_y > maxy_r) maxy_r = prev_y;
 
-        /* Dirty rect: cover previous and current ball + trail area. */
-        int32_t minx_r = cx, miny_r = cy, maxx_r = cx, maxy_r = cy;
-        for (int i = 0; i < TRAIL_N; i++)
-        {
-            int32_t tx = trail_x[i];
-            int32_t ty = trail_y[i];
-            if (tx < minx_r) minx_r = tx;
-            if (ty < miny_r) miny_r = ty;
-            if (tx > maxx_r) maxx_r = tx;
-            if (ty > maxy_r) maxy_r = ty;
-        }
-        if (prev_x < minx_r) minx_r = prev_x;
-        if (prev_y < miny_r) miny_r = prev_y;
-        if (prev_x > maxx_r) maxx_r = prev_x;
-        if (prev_y > maxy_r) maxy_r = prev_y;
+            int32_t pad = BALL_R + 30;
+            int32_t x0 = clamp_i32(minx_r - pad, 0, LCD_W - 1);
+            int32_t y0 = clamp_i32(miny_r - pad, 0, LCD_H - 1);
+            int32_t x1 = clamp_i32(maxx_r + pad, 0, LCD_W - 1);
+            int32_t y1 = clamp_i32(maxy_r + pad, 0, LCD_H - 1);
 
-        int32_t pad = BALL_R + 30;
-        int32_t x0 = clamp_i32(minx_r - pad, 0, LCD_W - 1);
-        int32_t y0 = clamp_i32(miny_r - pad, 0, LCD_H - 1);
-        int32_t x1 = clamp_i32(maxx_r + pad, 0, LCD_W - 1);
-        int32_t y1 = clamp_i32(maxy_r + pad, 0, LCD_H - 1);
-
-        /* Clamp tile size; if motion ever causes a large dirty rect, cap it to a fixed size. */
-        int32_t w = x1 - x0 + 1;
-        int32_t h = y1 - y0 + 1;
-        if (w > TILE_MAX_W || h > TILE_MAX_H)
-        {
-            int32_t halfw = TILE_MAX_W / 2;
-            int32_t halfh = TILE_MAX_H / 2;
-            int32_t ccx = (minx_r + maxx_r) / 2;
-            int32_t ccy = (miny_r + maxy_r) / 2;
-            x0 = clamp_i32(ccx - halfw, 0, LCD_W - 1);
-            y0 = clamp_i32(ccy - halfh, 0, LCD_H - 1);
-            x1 = clamp_i32(x0 + TILE_MAX_W - 1, 0, LCD_W - 1);
-            y1 = clamp_i32(y0 + TILE_MAX_H - 1, 0, LCD_H - 1);
-            w = x1 - x0 + 1;
-            h = y1 - y0 + 1;
-        }
+            /* Clamp tile size; if motion ever causes a large dirty rect, cap it to a fixed size. */
+            int32_t w = x1 - x0 + 1;
+            int32_t h = y1 - y0 + 1;
+            if (w > TILE_MAX_W || h > TILE_MAX_H)
+            {
+                int32_t halfw = TILE_MAX_W / 2;
+                int32_t halfh = TILE_MAX_H / 2;
+                int32_t ccx = (minx_r + maxx_r) / 2;
+                int32_t ccy = (miny_r + maxy_r) / 2;
+                x0 = clamp_i32(ccx - halfw, 0, LCD_W - 1);
+                y0 = clamp_i32(ccy - halfh, 0, LCD_H - 1);
+                x1 = clamp_i32(x0 + TILE_MAX_W - 1, 0, LCD_W - 1);
+                y1 = clamp_i32(y0 + TILE_MAX_H - 1, 0, LCD_H - 1);
+                w = x1 - x0 + 1;
+                h = y1 - y0 + 1;
+            }
 
 #if EDGEAI_RENDER_SINGLE_BLIT
-        /* Render into tile (black background) then blit once to avoid flicker/tearing lines. */
-        sw_render_clear(tile, (uint32_t)w, (uint32_t)h, 0x0000u);
+            /* Render into tile (black background) then blit once to avoid flicker/tearing lines. */
+            sw_render_clear(tile, (uint32_t)w, (uint32_t)h, 0x0000u);
 
-        /* Trails (streaks). */
-        for (int i = 0; i < TRAIL_N; i++)
-        {
-            uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
-            int32_t tx = trail_x[idx];
-            int32_t ty = trail_y[idx];
-            int r0 = 1 + (i / 6);
-            uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
-            sw_render_filled_circle(tile, (uint32_t)w, (uint32_t)h, x0, y0, tx, ty, r0, c);
-        }
+            /* Trails (streaks). */
+            for (int i = 0; i < TRAIL_N; i++)
+            {
+                uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
+                int32_t tx = trail_x[idx];
+                int32_t ty = trail_y[idx];
+                int r0 = 1 + (i / 6);
+                uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
+                sw_render_filled_circle(tile, (uint32_t)w, (uint32_t)h, x0, y0, tx, ty, r0, c);
+            }
 
-        sw_render_ball_shadow(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R);
-        sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R, frame++, glint);
+            sw_render_ball_shadow(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R);
+            sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R, frame++, glint);
 
-        par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
+            par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
 #else
-        /* "Raster" mode: draw directly to LCD using multiple operations.
-         * This is intentionally not a single-blit path; it can show tearing/raster lines.
-         */
-        par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
+            /* "Raster" mode: draw directly to LCD using multiple operations.
+             * This is intentionally not a single-blit path; it can show tearing/raster lines.
+             */
+            par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
 
-        for (int i = 0; i < TRAIL_N; i++)
-        {
-            uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
-            int32_t tx = trail_x[idx];
-            int32_t ty = trail_y[idx];
-            int r0 = 1 + (i / 6);
-            uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
-            par_lcd_s035_draw_filled_circle(tx, ty, r0, c);
-        }
+            for (int i = 0; i < TRAIL_N; i++)
+            {
+                uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
+                int32_t tx = trail_x[idx];
+                int32_t ty = trail_y[idx];
+                int r0 = 1 + (i / 6);
+                uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
+                par_lcd_s035_draw_filled_circle(tx, ty, r0, c);
+            }
 
-        par_lcd_s035_draw_ball_shadow(cx, cy, BALL_R);
-        par_lcd_s035_draw_silver_ball(cx, cy, BALL_R, frame++, glint);
+            par_lcd_s035_draw_ball_shadow(cx, cy, BALL_R);
+            par_lcd_s035_draw_silver_ball(cx, cy, BALL_R, frame++, glint);
 #endif
 
-        prev_x = cx;
-        prev_y = cy;
-        stats_frames++;
+            prev_x = cx;
+            prev_y = cy;
+            stats_frames++;
+        }
 
         /* NPU hook: run a Neutron-backed TFLM model at a low rate and use output to modulate "glint". */
         if (npu_ok && (npu_accum_us >= 200000u))
