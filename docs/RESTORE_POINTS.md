@@ -21,7 +21,7 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 ### 2026-02-08 Golden (Dune Background + Perspective Ball)
 - Tag: `GOLDEN_2026-02-08_v9`
 - Also: `milestone_dune_bg_fullscreen_v1`
-- Commit: `c45d0b6ba824a5714d79b1449e1fc22268d29758`
+- Commit: `6b1be842543222e9d601ad874ab9a63e7f11b26b`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: dune background rendered full-screen at boot; tilt-controlled silver ball with shadow + trails; ball radius scales with y-position for a simple perspective cue.
 - Notes: baseline restore point (expected stable visuals).
