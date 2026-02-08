@@ -171,17 +171,7 @@ int main(void)
         for (;;) {}
     }
 
-    /* Draw full-screen dune background once at boot.
-     * Per-frame we only update a dirty-rect, so without this the rest of the screen would stay black.
-     */
-    {
-        static uint16_t line[LCD_W];
-        for (int32_t y = 0; y < LCD_H; y++)
-        {
-            sw_render_dune_bg_line(line, LCD_W, 0, y);
-            par_lcd_s035_blit_rect(0, y, LCD_W - 1, y, line);
-        }
-    }
+    par_lcd_s035_fill(0x0000u);
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
     edgeai_tensor_dims_t in_dims = {0};

@@ -68,27 +68,6 @@ void sw_render_dune_bg(uint16_t *dst, uint32_t w, uint32_t h,
     }
 }
 
-void sw_render_dune_bg_line(uint16_t *dst, uint32_t w,
-                            int32_t x0, int32_t y)
-{
-    if (!dst || w == 0) return;
-
-    int32_t gy = y;
-    if (gy < 0) gy = 0;
-    uint32_t ty = ((uint32_t)gy) >> 1;
-    if (ty >= DUNE_TEX_H) ty = DUNE_TEX_H - 1u;
-
-    const uint16_t *src = &g_dune_tex[ty * DUNE_TEX_W];
-    for (uint32_t x = 0; x < w; x++)
-    {
-        int32_t gx = x0 + (int32_t)x;
-        if (gx < 0) gx = 0;
-        uint32_t tx = ((uint32_t)gx) >> 1;
-        if (tx >= DUNE_TEX_W) tx = DUNE_TEX_W - 1u;
-        dst[x] = src[tx];
-    }
-}
-
 void sw_render_filled_circle(uint16_t *dst, uint32_t w, uint32_t h,
                              int32_t x0, int32_t y0,
                              int32_t cx, int32_t cy, int32_t r, uint16_t rgb565)
