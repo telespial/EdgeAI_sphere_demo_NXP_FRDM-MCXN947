@@ -210,6 +210,62 @@ static inline uint16_t mix_rgb565(uint16_t a, uint16_t b, uint8_t t /*0..255*/)
     return (uint16_t)((r << 11) | (g << 5) | (bl << 0));
 }
 
+static inline uint16_t sample_cell_color(const sim_grid_t *grid,
+                                         uint32_t sx,
+                                         uint32_t sy,
+                                         const uint8_t *trail,
+                                         uint32_t frame)
+{
+    const uint32_t w = (uint32_t)grid->w;
+    const uint32_t h = (uint32_t)grid->h;
+    if (sx >= w) sx = w - 1u;
+    if (sy >= h) sy = h - 1u;
+
+    const uint8_t m = grid->cells[sy * w + sx];
+    uint16_t c = mat_to_rgb565(m);
+
+    /* Stylized shading: light from upper-left. */
+    if (m != MAT_EMPTY)
+    {
+        const bool empty_up   = (sy == 0) ? true : (grid->cells[(sy - 1u) * w + sx] == MAT_EMPTY);
+        const bool empty_left = (sx == 0) ? true : (grid->cells[sy * w + (sx - 1u)] == MAT_EMPTY);
+        const bool empty_dn   = (sy + 1u >= h) ? true : (grid->cells[(sy + 1u) * w + sx] == MAT_EMPTY);
+        const bool empty_rt   = (sx + 1u >= w) ? true : (grid->cells[sy * w + (sx + 1u)] == MAT_EMPTY);
+
+        if (empty_up || empty_left) c = rgb565_add(c, 2, 4, 2);
+        if (empty_dn || empty_rt)   c = rgb565_add(c, -2, -4, -2);
+    }
+
+    /* Material-specific "feel". */
+    const uint32_t hh = hash32((frame * 131u) ^ (sx * 911u) ^ (sy * 3571u));
+    if (m == MAT_WATER)
+    {
+        int s = (int)((hh >> 28) & 0xF) - 7;
+        c = rgb565_add(c, 0, s, s);
+    }
+    else if (m == MAT_SAND)
+    {
+        int n = (int)((hh >> 30) & 0x3) - 1;
+        c = rgb565_add(c, n, n * 2, 0);
+    }
+    else if (m == MAT_METAL)
+    {
+        if (((hh >> 27) & 0x7) == 0) c = rgb565_add(c, 3, 6, 3);
+    }
+
+    if (trail)
+    {
+        uint8_t t = trail[sy * w + sx];
+        if (t)
+        {
+            int boost = (int)(t >> 5);
+            c = rgb565_add(c, boost + 1, boost * 3, boost + 2);
+        }
+    }
+
+    return c;
+}
+
 void par_lcd_s035_render_grid(const sim_grid_t *grid,
                               const uint8_t *trail,
                               uint32_t frame,
@@ -231,72 +287,48 @@ void par_lcd_s035_render_grid(const sim_grid_t *grid,
 
     for (uint32_t y = 0; y < EDGEAI_LCD_HEIGHT; y++)
     {
-        /* Fast path: 240x160 -> 480x320 is exact 2x scaling. */
-        uint32_t sy = (grid->w == 240u && grid->h == 160u) ? (y >> 1) : (y * (uint32_t)grid->h) / EDGEAI_LCD_HEIGHT;
-        if (sy >= grid->h) sy = grid->h - 1u;
-
-        const uint8_t *row = &grid->cells[sy * (uint32_t)grid->w];
         for (uint32_t x = 0; x < EDGEAI_LCD_WIDTH; x++)
         {
-            uint32_t sx = (grid->w == 240u && grid->h == 160u) ? (x >> 1) : (x * (uint32_t)grid->w) / EDGEAI_LCD_WIDTH;
-            if (sx >= grid->w) sx = grid->w - 1u;
-            uint8_t m = row[sx];
-            uint16_t c = mat_to_rgb565(m);
-
-            /* Stylized shading: light from upper-left. */
-            if (m != MAT_EMPTY)
+            /* Perceived-resolution boost:
+             * For 240x160 -> 480x320 (2x), do a tiny bilinear blend only on edges.
+             * This keeps the sim discrete but removes the huge blocky look.
+             */
+            if (grid->w == 240u && grid->h == 160u)
             {
-                bool empty_up   = (sy == 0) ? true : (grid->cells[(sy - 1u) * (uint32_t)grid->w + sx] == MAT_EMPTY);
-                bool empty_left = (sx == 0) ? true : (row[sx - 1u] == MAT_EMPTY);
-                bool empty_dn   = (sy + 1u >= grid->h) ? true : (grid->cells[(sy + 1u) * (uint32_t)grid->w + sx] == MAT_EMPTY);
-                bool empty_rt   = (sx + 1u >= grid->w) ? true : (row[sx + 1u] == MAT_EMPTY);
+                const uint32_t sx0 = x >> 1;
+                const uint32_t sy0 = y >> 1;
+                const uint32_t sx1 = (sx0 + 1u < (uint32_t)grid->w) ? (sx0 + 1u) : sx0;
+                const uint32_t sy1 = (sy0 + 1u < (uint32_t)grid->h) ? (sy0 + 1u) : sy0;
 
-                if (empty_up || empty_left)
+                const uint8_t m00 = grid->cells[sy0 * (uint32_t)grid->w + sx0];
+                const uint8_t m10 = grid->cells[sy0 * (uint32_t)grid->w + sx1];
+                const uint8_t m01 = grid->cells[sy1 * (uint32_t)grid->w + sx0];
+                const uint8_t m11 = grid->cells[sy1 * (uint32_t)grid->w + sx1];
+
+                uint16_t c00 = sample_cell_color(grid, sx0, sy0, trail, frame);
+                if ((m00 == m10) && (m00 == m01) && (m00 == m11))
                 {
-                    c = rgb565_add(c, 2, 4, 2);
+                    line[x] = c00;
                 }
-                if (empty_dn || empty_rt)
+                else
                 {
-                    c = rgb565_add(c, -2, -4, -2);
-                }
-            }
+                    uint16_t c10 = sample_cell_color(grid, sx1, sy0, trail, frame);
+                    uint16_t c01 = sample_cell_color(grid, sx0, sy1, trail, frame);
+                    uint16_t c11 = sample_cell_color(grid, sx1, sy1, trail, frame);
 
-            /* Material-specific "feel". */
-            uint32_t h = hash32((frame * 131u) ^ (sx * 911u) ^ (sy * 3571u));
-            if (m == MAT_WATER)
-            {
-                /* shimmer highlights */
-                int s = (int)((h >> 28) & 0xF) - 7; /* [-7..8] */
-                c = rgb565_add(c, 0, s, s);
-            }
-            else if (m == MAT_SAND)
-            {
-                /* dither/noise */
-                int n = (int)((h >> 30) & 0x3) - 1; /* [-1..2] */
-                c = rgb565_add(c, n, n * 2, 0);
-            }
-            else if (m == MAT_METAL)
-            {
-                /* subtle specular streaks */
-                if (((h >> 27) & 0x7) == 0)
-                {
-                    c = rgb565_add(c, 3, 6, 3);
+                    const uint8_t wx = (x & 1u) ? 128u : 0u;
+                    const uint8_t wy = (y & 1u) ? 128u : 0u;
+                    uint16_t top = mix_rgb565(c00, c10, wx);
+                    uint16_t bot = mix_rgb565(c01, c11, wx);
+                    line[x] = mix_rgb565(top, bot, wy);
                 }
             }
-
-            /* Motion trails (optional). */
-            if (trail)
+            else
             {
-                uint8_t t = trail[sy * (uint32_t)grid->w + sx];
-                if (t)
-                {
-                    int boost = (int)(t >> 5); /* 0..7 */
-                    /* tint trails slightly towards white/cyan */
-                    c = rgb565_add(c, boost + 1, boost * 3, boost + 2);
-                }
+                uint32_t sx = (x * (uint32_t)grid->w) / EDGEAI_LCD_WIDTH;
+                uint32_t sy = (y * (uint32_t)grid->h) / EDGEAI_LCD_HEIGHT;
+                line[x] = sample_cell_color(grid, sx, sy, trail, frame);
             }
-
-            line[x] = c;
         }
 
         /* Glass-ball overlay (line-local). */
@@ -340,20 +372,26 @@ void par_lcd_s035_render_grid(const sim_grid_t *grid,
 
                     uint16_t base = line[xx];
                     uint16_t refr = line[sx];
-                    uint16_t mixed = mix_rgb565(base, refr, (uint8_t)(60u + (depth >> 2)));
+
+                    /* Metal look: dark base + environment reflection + hard specular. */
+                    uint16_t metal = 0x7BEFu; /* light grey */
+                    uint16_t mixed = mix_rgb565(base, metal, 120u);
+                    mixed = mix_rgb565(mixed, refr, (uint8_t)(30u + (depth >> 3)));
+
+                    /* Brushed texture (horizontal). */
+                    if (((hash32((uint32_t)xx * 13u + frame) >> 28) & 1u) != 0u)
+                    {
+                        mixed = rgb565_add(mixed, 1, 2, 1);
+                    }
 
                     /* Specular highlight (upper-left). */
-                    int32_t hl = (-(dx + dy) + ball_r_px) * 2;
+                    int32_t hl = (-(dx + dy) + (ball_r_px / 2)) * 5;
                     if (hl < 0) hl = 0;
-                    if (hl > 40) hl = 40;
+                    if (hl > 90) hl = 90;
+                    mixed = rgb565_add(mixed, hl / 10, hl / 6, hl / 10);
 
-                    mixed = rgb565_add(mixed, hl / 10, hl / 5, hl / 10);
-
-                    /* Rim light */
-                    if (depth < 40u)
-                    {
-                        mixed = rgb565_add(mixed, 2, 4, 6);
-                    }
+                    /* Rim light. */
+                    if (depth < 50u) mixed = rgb565_add(mixed, 2, 4, 6);
 
                     line[xx] = mixed;
                 }

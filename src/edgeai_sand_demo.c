@@ -19,6 +19,9 @@
 #define SIM_W 240u
 #define SIM_H 160u
 
+#define BALL_ACCEL_SCALE 12   /* responsiveness; higher = faster roll */
+#define BALL_DAMP_NUM    250  /* 0..255, higher = less damping */
+
 #ifndef EDGEAI_I2C
 #define EDGEAI_I2C LPI2C3
 #endif
@@ -35,7 +38,7 @@
 #define EDGEAI_ACCEL_INVERT_X 1
 #endif
 #ifndef EDGEAI_ACCEL_INVERT_Y
-#define EDGEAI_ACCEL_INVERT_Y 0
+#define EDGEAI_ACCEL_INVERT_Y 1
 #endif
 
 static uint32_t edgeai_i2c_get_freq(void)
@@ -267,14 +270,15 @@ int main(void)
 
             /* Ball "physics": inertia + swaps with sand/water; bounces off metal/bounds. */
             {
-                /* Use mapped accel directly for smoother "rolling". */
-                const int32_t accel_scale = 3; /* tune */
-                ball_vx_fp += (axm / 64) * accel_scale;
-                ball_vy_fp += (aym / 64) * accel_scale;
+                /* Use filtered accel for smooth, responsive rolling. */
+                int32_t axf = ax_lp;
+                int32_t ayf = ay_lp;
+                ball_vx_fp += (axf / 32) * BALL_ACCEL_SCALE;
+                ball_vy_fp += (ayf / 32) * BALL_ACCEL_SCALE;
 
                 /* Damping. */
-                ball_vx_fp = (ball_vx_fp * 245) >> 8;
-                ball_vy_fp = (ball_vy_fp * 245) >> 8;
+                ball_vx_fp = (ball_vx_fp * BALL_DAMP_NUM) >> 8;
+                ball_vy_fp = (ball_vy_fp * BALL_DAMP_NUM) >> 8;
 
                 int32_t nx_fp = ball_x_fp + ball_vx_fp;
                 int32_t ny_fp = ball_y_fp + ball_vy_fp;
