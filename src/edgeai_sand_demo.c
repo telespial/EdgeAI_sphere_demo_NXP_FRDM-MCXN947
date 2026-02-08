@@ -446,7 +446,7 @@ int main(void)
     /* Intro: show title, auto-paint the dune across the full screen, then hand off to tilt. */
     typedef enum { EDGEAI_INTRO_TITLE = 0, EDGEAI_INTRO_PAINT = 1, EDGEAI_INTRO_NORMAL = 2 } edgeai_intro_t;
     edgeai_intro_t intro = EDGEAI_INTRO_TITLE;
-    uint32_t intro_ms = 0;
+    uint32_t intro_us = 0;
     bool intro_full_bg_done = false;
 
     /* Use the max radius here so the "near" ball can't clip the screen edge. */
@@ -505,7 +505,8 @@ int main(void)
         render_accum_us += dt_us;
         sim_accum_q16 += dt_q16;
 
-        intro_ms += dt_us / 1000u;
+        /* Don't accumulate in ms via integer division; dt_us can be < 1000 and would stall the intro. */
+        if (intro_us <= (0xFFFFFFFFu - dt_us)) intro_us += dt_us;
 
         int32_t ax = (int32_t)s.x;
         int32_t ay = (int32_t)s.y;
@@ -552,10 +553,10 @@ int main(void)
 
         if (intro != EDGEAI_INTRO_NORMAL)
         {
-            if ((intro == EDGEAI_INTRO_TITLE) && (intro_ms >= 1600u))
+            if ((intro == EDGEAI_INTRO_TITLE) && (intro_us >= 1600000u))
             {
                 intro = EDGEAI_INTRO_PAINT;
-                intro_ms = 0;
+                intro_us = 0;
                 paint_idx = 0;
                 paint_setup_done = false;
             }
