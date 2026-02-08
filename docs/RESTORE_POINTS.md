@@ -44,8 +44,8 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 
 ### 2026-02-08 Boot Title + Auto-Paint v3 (Intro Timer Fix)
 - Tag: `milestone_boot_title_autopaint_v3`
-- Lock tag: `LOCK_milestone_boot_title_autopaint_v3_bcc97d0` (includes SHA in name; do not move)
-- Commit: `bcc97d02186838c4ce0d538f1b425978296496ab`
+- Lock tag: `LOCK_milestone_boot_title_autopaint_v3_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse milestone_boot_title_autopaint_v3`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: same as v2, but fixes intro timing accumulation so the title reliably transitions to the ball autopaint phase even when loop dt is < 1ms.
 - Notes: if the title ever seems to “hang”, use this restore point instead of v2.
