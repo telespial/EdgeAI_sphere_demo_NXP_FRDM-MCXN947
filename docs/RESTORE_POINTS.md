@@ -40,6 +40,13 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: disables the red/green/blue axis + wall wireframe; keeps black background with the silver ball (+ trails/shadow).
 - Notes: use this if the environment overlay is distracting or causes visual artifacts.
 
+### 2026-02-08 Restore Stable (No Env Lines, UART + LCD OK)
+- Tag: `milestone_restore_golden_v9_no_env_v1`
+- Commit: `fd38f28410ad56ec5d5be149137a90965afde8e5`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: restored back to the stable tilt-ball + trails behavior (no env axes/walls); UART output and LCD rendering verified.
+- Notes: use this if the screen goes blank or UART stops printing after experimenting.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
