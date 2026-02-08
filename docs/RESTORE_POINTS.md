@@ -61,6 +61,13 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: boot stays black; as the ball moves, the dune background is rendered into each dirty-rect tile and remains on-screen.
 - Notes: this reverts the fullscreen boot background draw.
 
+### 2026-02-08 Accel Bring-Up Retry + Early Boot Logs
+- Tag: `milestone_accel_bringup_retry_v1`
+- Commit: `8140a4a0ef7a65c3dbb089c92f0b4b298e1c4e6c`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: initializes LCD early, prints boot banner early, retries accel WHO_AM_I for ~2s, and continues running if accel is missing (so the display doesn’t look “frozen”).
+- Notes: if ball is stuck, check UART for `EDGEAI: accel ok addr=0x18` (or 0x19). If you see “not found”, reseat the clickboard / verify I2C mode.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
