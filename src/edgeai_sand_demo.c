@@ -259,16 +259,17 @@ int main(void)
         int32_t ay = (int32_t)s.y;
         map_accel_xy(&ax, &ay);
 
-        ax_lp += (ax - ax_lp) >> 3;
-        ay_lp += (ay - ay_lp) >> 3;
+        /* Faster LP so small tilts respond quickly. */
+        ax_lp += (ax - ax_lp) >> 2;
+        ay_lp += (ay - ay_lp) >> 2;
 
         /* Raw 12b is roughly ~512 counts / 1g at our current mode. Clamp to avoid crazy jumps. */
         ax_lp = clamp_i32(ax_lp, -ACCEL_MAP_DENOM * 2, ACCEL_MAP_DENOM * 2);
         ay_lp = clamp_i32(ay_lp, -ACCEL_MAP_DENOM * 2, ACCEL_MAP_DENOM * 2);
 
-        /* Deadzone to avoid jitter when the board is nearly flat. */
-        if (abs_i32(ax_lp) < 6) ax_lp = 0;
-        if (abs_i32(ay_lp) < 6) ay_lp = 0;
+        /* Deadzone: keep tiny, otherwise motion can look "stuck". */
+        if (abs_i32(ax_lp) < 1) ax_lp = 0;
+        if (abs_i32(ay_lp) < 1) ay_lp = 0;
 
         /* If accel read is failing, force a visible change so it doesn't look like
          * the demo is broken in a mysterious way.
@@ -276,7 +277,8 @@ int main(void)
         uint16_t bg = (accel_fail > 0) ? 0x1800u /* dark red */ : 0x0000u;
 
         /* Physics: treat accel as "gravity" and integrate velocity/position. */
-        const int32_t a_px_s2 = 2400; /* px/s^2 at ~1g (more responsive) */
+        /* Increase gain so even moderate tilts visibly move the ball. */
+        const int32_t a_px_s2 = 8000; /* px/s^2 at ~1g */
         const int32_t a_scale_q16 = (int32_t)(((int64_t)a_px_s2 << 16) / ACCEL_MAP_DENOM);
         int32_t ax_a_q16 = ax_lp * a_scale_q16;
         int32_t ay_a_q16 = ay_lp * a_scale_q16;
