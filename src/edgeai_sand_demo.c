@@ -42,6 +42,16 @@
 #define EDGEAI_I2C LPI2C3
 #endif
 
+/* Rendering mode:
+ * - 0: "raster/flicker" mode: draw primitives directly to LCD using many small writes
+ *      (visually interesting but can show tearing/shutter lines).
+ * - 1: "single blit" mode: render into a RAM tile and blit once per frame
+ *      (stable image, much less tearing).
+ */
+#ifndef EDGEAI_RENDER_SINGLE_BLIT
+#define EDGEAI_RENDER_SINGLE_BLIT 0
+#endif
+
 static uint32_t edgeai_i2c_get_freq(void)
 {
     return CLOCK_GetLPFlexCommClkFreq(3u);
@@ -192,9 +202,12 @@ int main(void)
     uint32_t stats_accum_us = 0;
     uint32_t stats_frames = 0;
 
-    /* Tile renderer (one LCD blit per frame to avoid tearing/flicker). */
+    /* Maximum dirty-rect size. Even in raster mode we clamp work per frame. */
     enum { TILE_MAX_W = 200, TILE_MAX_H = 200 };
+#if EDGEAI_RENDER_SINGLE_BLIT
+    /* Tile renderer (one LCD blit per frame to avoid tearing/flicker). */
     static uint16_t tile[TILE_MAX_W * TILE_MAX_H];
+#endif
 
     /* Some MCXN947 configurations (or secure setups) can leave DWT->CYCCNT not advancing,
      * which makes dt==0 and "freezes" all motion. Keep a fixed timestep fallback so
@@ -318,6 +331,7 @@ int main(void)
             h = y1 - y0 + 1;
         }
 
+#if EDGEAI_RENDER_SINGLE_BLIT
         /* Render into tile (black background) then blit once to avoid flicker/tearing lines. */
         sw_render_clear(tile, (uint32_t)w, (uint32_t)h, 0x0000u);
 
@@ -336,6 +350,25 @@ int main(void)
         sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, BALL_R, frame++, glint);
 
         par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
+#else
+        /* "Raster" mode: draw directly to LCD using multiple operations.
+         * This is intentionally not a single-blit path; it can show tearing/raster lines.
+         */
+        par_lcd_s035_fill_rect(x0, y0, x1, y1, 0x0000u);
+
+        for (int i = 0; i < TRAIL_N; i++)
+        {
+            uint32_t idx = (trail_head + (uint32_t)i) % TRAIL_N;
+            int32_t tx = trail_x[idx];
+            int32_t ty = trail_y[idx];
+            int r0 = 1 + (i / 6);
+            uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
+            par_lcd_s035_draw_filled_circle(tx, ty, r0, c);
+        }
+
+        par_lcd_s035_draw_ball_shadow(cx, cy, BALL_R);
+        par_lcd_s035_draw_silver_ball(cx, cy, BALL_R, frame++, glint);
+#endif
 
         prev_x = cx;
         prev_y = cy;
