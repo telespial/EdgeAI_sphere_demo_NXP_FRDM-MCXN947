@@ -24,7 +24,7 @@
 
 /* Small 3D-ish axis overlay in the bottom-left corner. */
 #ifndef EDGEAI_ENV_AXES
-#define EDGEAI_ENV_AXES 0
+#define EDGEAI_ENV_AXES 1
 #endif
 
 /* Empirically, the raw 12-bit output here is roughly on the order of ~512 counts per 1g
@@ -133,7 +133,6 @@ static int32_t clamp_i32_sym(int32_t v, int32_t limit_abs)
 }
 
 /* Cohen–Sutherland line clipping to a rectangle (inclusive). */
-#if EDGEAI_ENV_AXES
 static int32_t clip_code_i32(int32_t x, int32_t y, int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
     enum { INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8 };
@@ -203,11 +202,10 @@ static bool clip_line_i32(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1,
         }
     }
 }
-#endif /* EDGEAI_ENV_AXES */
 
-#if EDGEAI_ENV_AXES
 static void edgeai_draw_env_axes_rect(int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
+#if EDGEAI_ENV_AXES
     const int32_t ox = LCD_W / 2;
     const int32_t oy = 54;
     const int32_t len = 800; /* intentionally extends off-screen */
@@ -229,8 +227,8 @@ static void edgeai_draw_env_axes_rect(int32_t rx0, int32_t ry0, int32_t rx1, int
         int32_t x0 = ox - (len / 2), y0 = oy + (len / 3), x1 = ox + (len / 2), y1 = oy - (len / 3);
         if (clip_line_i32(&x0, &y0, &x1, &y1, rx0, ry0, rx1, ry1)) par_lcd_s035_draw_line(x0, y0, x1, y1, cz);
     }
+#endif
 }
-#endif /* EDGEAI_ENV_AXES */
 
 static void edgeai_draw_env_walls_rect(int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
@@ -329,7 +327,6 @@ int main(void)
     }
 
     par_lcd_s035_fill(0x0000u);
-    /* Environment wireframe disabled by default (EDGEAI_ENV_AXES=0). */
     edgeai_draw_env_walls_rect(0, 0, LCD_W - 1, LCD_H - 1);
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
