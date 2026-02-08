@@ -5,6 +5,7 @@ This repo is a hardware sandbox for FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click 
 Current demo (known-good):
 - Tilt-controlled "silver ball" with shadow and motion trails (480x320).
 - NPU is integrated via TFLM + Neutron backend and can modulate the ball's specular "glint".
+- Dune background derived from `downloads/sanddune.jpg` (rendered behind the ball).
 
 ## Known-Good Revision (Golden)
 If anything breaks, return to this exact revision:
@@ -32,6 +33,16 @@ Key folders:
 
 Serial output (optional):
 - `timeout 10 cat /dev/ttyACM0`
+
+## Background Image (Dune)
+The background is generated from `downloads/sanddune.jpg` into a low-res heightmap + shaded texture:
+- Generated file: `src/dune_bg.h`
+- Generator: `tools/gen_dune_bg.py`
+
+Regenerate after changing the source image:
+```bash
+python3 tools/gen_dune_bg.py --in downloads/sanddune.jpg --out src/dune_bg.h
+```
 
 ## NPU Notes
 By default, the firmware initializes the NPU stack but does not run inference (to avoid any platform-specific stalls).

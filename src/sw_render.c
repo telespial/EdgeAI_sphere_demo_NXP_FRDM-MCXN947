@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "dune_bg.h"
+
 static inline uint32_t sw_isqrt_u32(uint32_t x)
 {
     /* Integer sqrt (floor). */
@@ -38,6 +40,32 @@ void sw_render_clear(uint16_t *dst, uint32_t w, uint32_t h, uint16_t rgb565)
         return;
     }
     for (uint32_t i = 0; i < w * h; i++) dst[i] = rgb565;
+}
+
+void sw_render_dune_bg(uint16_t *dst, uint32_t w, uint32_t h,
+                       int32_t x0, int32_t y0)
+{
+    if (!dst || w == 0 || h == 0) return;
+
+    for (uint32_t y = 0; y < h; y++)
+    {
+        int32_t gy = y0 + (int32_t)y;
+        if (gy < 0) gy = 0;
+        uint32_t ty = ((uint32_t)gy) >> 1;
+        if (ty >= DUNE_TEX_H) ty = DUNE_TEX_H - 1u;
+
+        const uint16_t *src = &g_dune_tex[ty * DUNE_TEX_W];
+        uint16_t *row = &dst[y * w];
+
+        for (uint32_t x = 0; x < w; x++)
+        {
+            int32_t gx = x0 + (int32_t)x;
+            if (gx < 0) gx = 0;
+            uint32_t tx = ((uint32_t)gx) >> 1;
+            if (tx >= DUNE_TEX_W) tx = DUNE_TEX_W - 1u;
+            row[x] = src[tx];
+        }
+    }
 }
 
 void sw_render_filled_circle(uint16_t *dst, uint32_t w, uint32_t h,
@@ -226,4 +254,3 @@ void sw_render_silver_ball(uint16_t *dst, uint32_t w, uint32_t h,
         }
     }
 }
-

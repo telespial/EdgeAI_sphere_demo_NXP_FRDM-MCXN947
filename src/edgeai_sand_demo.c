@@ -54,7 +54,7 @@
  *      (stable image, much less tearing).
  */
 #ifndef EDGEAI_RENDER_SINGLE_BLIT
-#define EDGEAI_RENDER_SINGLE_BLIT 0
+#define EDGEAI_RENDER_SINGLE_BLIT 1
 #endif
 
 static uint32_t edgeai_i2c_get_freq(void)
@@ -331,7 +331,9 @@ int main(void)
         /* If accel read is failing, force a visible change so it doesn't look like
          * the demo is broken in a mysterious way.
          */
+#if !EDGEAI_RENDER_SINGLE_BLIT
         uint16_t bg = (accel_fail > 0) ? 0x1800u /* dark red */ : 0x0000u;
+#endif
 
         /* Physics: fixed-step integration at sim_step_q16. */
         const int32_t a_px_s2 = 4200; /* px/s^2 at ~1g (arcade, not twitchy) */
@@ -434,7 +436,7 @@ int main(void)
 
 #if EDGEAI_RENDER_SINGLE_BLIT
             /* Render into tile (black background) then blit once to avoid flicker/tearing lines. */
-            sw_render_clear(tile, (uint32_t)w, (uint32_t)h, 0x0000u);
+            sw_render_dune_bg(tile, (uint32_t)w, (uint32_t)h, x0, y0);
 
             /* Trails (streaks). */
             for (int i = 0; i < TRAIL_N; i++)
