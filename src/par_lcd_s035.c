@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "fsl_clock.h"
+#include "fsl_common.h"
 #include "fsl_debug_console.h"
 #include "fsl_gpio.h"
 
@@ -81,8 +82,17 @@ static void edgeai_delay_ms(uint32_t ms)
 
 static void lcd_wait_write_done(void)
 {
+    /* Guard against rare EDMA/callback stalls; we prefer a visible glitch over a hard hang. */
+    uint32_t spin = 0;
     while (!s_memWriteDone)
     {
+        if (++spin > 60000000u) /* ~0.4s @ 150MHz ballpark */
+        {
+            /* Force progress. The next frame will likely recover. */
+            s_memWriteDone = true;
+            break;
+        }
+        __NOP();
     }
 }
 

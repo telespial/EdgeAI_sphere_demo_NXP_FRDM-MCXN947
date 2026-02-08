@@ -132,10 +132,22 @@ int main(void)
     BOARD_InitHardware();
     dwt_cycle_counter_init();
 
+    /* Bring up LCD early so we can always show something even if accel init fails. */
+    if (!par_lcd_s035_init())
+    {
+        /* Can't proceed without display in this demo. */
+        for (;;) {}
+    }
+    par_lcd_s035_fill(0x0000u); /* boot stays black (dune reveals as you roll) */
+
+    /* Print banner early; previous hangs made it hard to tell if firmware was alive. */
+    PRINTF("EDGEAI: boot %s %s\r\n", __DATE__, __TIME__);
+
     /* Init I2C for the accel (mikroBUS). */
     lpi2c_master_config_t masterCfg;
     LPI2C_MasterGetDefaultConfig(&masterCfg);
-    masterCfg.baudRate_Hz = 400000u;
+    /* Be conservative; some shield/cable setups are flaky at 400k. */
+    masterCfg.baudRate_Hz = 100000u;
     LPI2C_MasterInit(EDGEAI_I2C, &masterCfg, edgeai_i2c_get_freq());
 
     fxls8974_dev_t dev = {
@@ -147,31 +159,32 @@ int main(void)
     const uint8_t addrs[] = {ACCEL4_CLICK_I2C_ADDR0, ACCEL4_CLICK_I2C_ADDR1};
     uint8_t who = 0;
     bool found = false;
-    for (size_t i = 0; i < (sizeof(addrs) / sizeof(addrs[0])); i++)
+    /* Retry accel bring-up briefly; cold boots can race sensor power-up. */
+    for (uint32_t tries = 0; tries < 200; tries++) /* ~2s */
     {
-        dev.addr7 = addrs[i];
-        if (fxls8974_read_whoami(&dev, &who) && (who == FXLS8974_WHO_AM_I_VALUE))
+        for (size_t i = 0; i < (sizeof(addrs) / sizeof(addrs[0])); i++)
         {
-            found = true;
-            break;
+            dev.addr7 = addrs[i];
+            if (fxls8974_read_whoami(&dev, &who) && (who == FXLS8974_WHO_AM_I_VALUE))
+            {
+                found = true;
+                break;
+            }
         }
+        if (found) break;
+        SDK_DelayAtLeastUs(10000u, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
     }
     if (!found)
     {
-        PRINTF("FXLS8974CF not found (WHO_AM_I=0x%02x)\r\n", who);
-        for (;;) {}
+        PRINTF("EDGEAI: FXLS8974CF not found (WHO_AM_I=0x%02x). Continuing without accel.\r\n", who);
     }
-    (void)fxls8974_set_active(&dev, false);
-    (void)fxls8974_set_fsr(&dev, FXLS8974_FSR_4G);
-    (void)fxls8974_set_active(&dev, true);
-
-    if (!par_lcd_s035_init())
+    else
     {
-        PRINTF("LCD init failed\r\n");
-        for (;;) {}
+        (void)fxls8974_set_active(&dev, false);
+        (void)fxls8974_set_fsr(&dev, FXLS8974_FSR_4G);
+        (void)fxls8974_set_active(&dev, true);
+        PRINTF("EDGEAI: accel ok addr=0x%02x\r\n", (unsigned)dev.addr7);
     }
-
-    par_lcd_s035_fill(0x0000u);
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
     edgeai_tensor_dims_t in_dims = {0};
@@ -223,8 +236,7 @@ int main(void)
 #endif
 
     /* Boot banner: keep it short and printf-lite compatible (avoid %ld). */
-    PRINTF("EDGEAI: tilt-ball fw %s %s (npu_init=%u npu_run=%u render=%s)\r\n",
-           __DATE__, __TIME__,
+    PRINTF("EDGEAI: tilt-ball (npu_init=%u npu_run=%u render=%s)\r\n",
            (unsigned)(npu_ok ? 1u : 0u),
            (unsigned)(EDGEAI_ENABLE_NPU_INFERENCE ? 1u : 0u),
            (EDGEAI_RENDER_SINGLE_BLIT ? "blit" : "raster"));
@@ -247,7 +259,11 @@ int main(void)
 
     for (;;)
     {
-        bool accel_ok = fxls8974_read_sample_12b(&dev, &s);
+        bool accel_ok = false;
+        if (found)
+        {
+            accel_ok = fxls8974_read_sample_12b(&dev, &s);
+        }
         if (!accel_ok)
         {
             /* Keep the render loop alive even if I2C glitches; this prevents the
