@@ -132,46 +132,153 @@ static int32_t clamp_i32_sym(int32_t v, int32_t limit_abs)
     return v;
 }
 
-static bool rects_intersect_i32(int32_t ax0, int32_t ay0, int32_t ax1, int32_t ay1,
-                                int32_t bx0, int32_t by0, int32_t bx1, int32_t by1)
+/* Cohen–Sutherland line clipping to a rectangle (inclusive). */
+static int32_t clip_code_i32(int32_t x, int32_t y, int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
-    if (ax1 < bx0 || bx1 < ax0) return false;
-    if (ay1 < by0 || by1 < ay0) return false;
-    return true;
+    enum { INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8 };
+    int32_t c = INSIDE;
+    if (x < rx0) c |= LEFT;
+    else if (x > rx1) c |= RIGHT;
+    if (y < ry0) c |= TOP;
+    else if (y > ry1) c |= BOTTOM;
+    return c;
 }
 
-static void edgeai_draw_env_axes(void)
+static bool clip_line_i32(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1,
+                          int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
+{
+    enum { INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8 };
+    int32_t x0v = *x0, y0v = *y0, x1v = *x1, y1v = *y1;
+    int32_t c0 = clip_code_i32(x0v, y0v, rx0, ry0, rx1, ry1);
+    int32_t c1 = clip_code_i32(x1v, y1v, rx0, ry0, rx1, ry1);
+
+    while (true)
+    {
+        if ((c0 | c1) == 0)
+        {
+            *x0 = x0v; *y0 = y0v; *x1 = x1v; *y1 = y1v;
+            return true;
+        }
+        if (c0 & c1)
+        {
+            return false;
+        }
+
+        int32_t out = c0 ? c0 : c1;
+        int32_t x = 0, y = 0;
+
+        if (out & TOP)
+        {
+            y = ry0;
+            x = x0v + (int32_t)((int64_t)(x1v - x0v) * (int64_t)(y - y0v) / (int64_t)(y1v - y0v));
+        }
+        else if (out & BOTTOM)
+        {
+            y = ry1;
+            x = x0v + (int32_t)((int64_t)(x1v - x0v) * (int64_t)(y - y0v) / (int64_t)(y1v - y0v));
+        }
+        else if (out & RIGHT)
+        {
+            x = rx1;
+            y = y0v + (int32_t)((int64_t)(y1v - y0v) * (int64_t)(x - x0v) / (int64_t)(x1v - x0v));
+        }
+        else /* LEFT */
+        {
+            x = rx0;
+            y = y0v + (int32_t)((int64_t)(y1v - y0v) * (int64_t)(x - x0v) / (int64_t)(x1v - x0v));
+        }
+
+        if (out == c0)
+        {
+            x0v = x;
+            y0v = y;
+            c0 = clip_code_i32(x0v, y0v, rx0, ry0, rx1, ry1);
+        }
+        else
+        {
+            x1v = x;
+            y1v = y;
+            c1 = clip_code_i32(x1v, y1v, rx0, ry0, rx1, ry1);
+        }
+    }
+}
+
+static void edgeai_draw_env_axes_rect(int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
 #if EDGEAI_ENV_AXES
-    const int32_t ox = 26, oy = LCD_H - 26;
-    const int32_t len = 110;
+    const int32_t ox = LCD_W / 2;
+    const int32_t oy = 54;
+    const int32_t len = 800; /* intentionally extends off-screen */
     const uint16_t cx = 0x07FFu; /* cyan (X) */
     const uint16_t cy = 0x07E0u; /* green (Y) */
     const uint16_t cz = 0xF800u; /* red (Z) */
-    par_lcd_s035_draw_line(ox, oy, ox + len, oy, cx);
-    par_lcd_s035_draw_line(ox, oy, ox, oy - len, cy);
-    par_lcd_s035_draw_line(ox, oy, ox + (len * 3) / 5, oy - (len * 3) / 5, cz);
+    /* X axis */
+    {
+        int32_t x0 = ox - len, y0 = oy, x1 = ox + len, y1 = oy;
+        if (clip_line_i32(&x0, &y0, &x1, &y1, rx0, ry0, rx1, ry1)) par_lcd_s035_draw_line(x0, y0, x1, y1, cx);
+    }
+    /* Y axis */
+    {
+        int32_t x0 = ox, y0 = oy - len, x1 = ox, y1 = oy + len;
+        if (clip_line_i32(&x0, &y0, &x1, &y1, rx0, ry0, rx1, ry1)) par_lcd_s035_draw_line(x0, y0, x1, y1, cy);
+    }
+    /* Z axis (diagonal down-right) */
+    {
+        int32_t x0 = ox - (len / 2), y0 = oy + (len / 3), x1 = ox + (len / 2), y1 = oy - (len / 3);
+        if (clip_line_i32(&x0, &y0, &x1, &y1, rx0, ry0, rx1, ry1)) par_lcd_s035_draw_line(x0, y0, x1, y1, cz);
+    }
 #endif
 }
 
-static void edgeai_env_bbox(int32_t *x0, int32_t *y0, int32_t *x1, int32_t *y1)
+static void edgeai_draw_env_walls_rect(int32_t rx0, int32_t ry0, int32_t rx1, int32_t ry1)
 {
 #if EDGEAI_ENV_AXES
-    const int32_t ox = 26, oy = LCD_H - 26;
-    const int32_t len = 110;
-    int32_t minx = ox;
-    int32_t maxx = ox + len;
-    int32_t miny = oy - len;
-    int32_t maxy = oy;
-    if (x0) *x0 = minx;
-    if (y0) *y0 = miny;
-    if (x1) *x1 = maxx;
-    if (y1) *y1 = maxy;
+    /* Simple wireframe room with vanishing point. */
+    const int32_t vp_x = LCD_W / 2;
+    const int32_t vp_y = 54;
+
+    const int32_t back_w = 240;
+    const int32_t back_h = 150;
+    const int32_t bx0 = vp_x - back_w / 2;
+    const int32_t bx1 = vp_x + back_w / 2;
+    const int32_t by0 = vp_y - back_h / 2;
+    const int32_t by1 = vp_y + back_h / 2;
+
+    const int32_t fl_x0 = -200;
+    const int32_t fl_x1 = LCD_W + 200;
+    const int32_t fl_y  = LCD_H - 1;
+
+    const uint16_t c_wall = 0x4208u; /* dark gray */
+    const uint16_t c_floor = 0x31A6u; /* slightly brighter */
+
+    struct seg { int32_t x0,y0,x1,y1; uint16_t c; };
+    const struct seg segs[] = {
+        /* Back wall rectangle */
+        {bx0, by0, bx1, by0, c_wall},
+        {bx1, by0, bx1, by1, c_wall},
+        {bx1, by1, bx0, by1, c_wall},
+        {bx0, by1, bx0, by0, c_wall},
+        /* Floor edges toward vanishing point (extend off-screen) */
+        {fl_x0, fl_y, vp_x, vp_y, c_floor},
+        {fl_x1, fl_y, vp_x, vp_y, c_floor},
+        /* Side wall edges */
+        {0, fl_y, bx0, by1, c_wall},
+        {LCD_W - 1, fl_y, bx1, by1, c_wall},
+        /* Center "depth" line */
+        {LCD_W / 2, fl_y, vp_x, vp_y, c_floor},
+    };
+
+    for (size_t i = 0; i < (sizeof(segs) / sizeof(segs[0])); i++)
+    {
+        int32_t x0 = segs[i].x0, y0 = segs[i].y0, x1 = segs[i].x1, y1 = segs[i].y1;
+        if (!clip_line_i32(&x0, &y0, &x1, &y1, rx0, ry0, rx1, ry1)) continue;
+        par_lcd_s035_draw_line(x0, y0, x1, y1, segs[i].c);
+    }
+
+    /* Axes overlay on top of walls. */
+    edgeai_draw_env_axes_rect(rx0, ry0, rx1, ry1);
 #else
-    if (x0) *x0 = 0;
-    if (y0) *y0 = 0;
-    if (x1) *x1 = -1;
-    if (y1) *y1 = -1;
+    (void)rx0; (void)ry0; (void)rx1; (void)ry1;
 #endif
 }
 
@@ -220,7 +327,7 @@ int main(void)
     }
 
     par_lcd_s035_fill(0x0000u);
-    edgeai_draw_env_axes();
+    edgeai_draw_env_walls_rect(0, 0, LCD_W - 1, LCD_H - 1);
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
     edgeai_tensor_dims_t in_dims = {0};
@@ -505,16 +612,7 @@ int main(void)
              * This is intentionally not a single-blit path; it can show tearing/raster lines.
              */
             par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
-
-            /* If we cleared over the axes overlay, redraw it. */
-            {
-                int32_t ex0, ey0, ex1, ey1;
-                edgeai_env_bbox(&ex0, &ey0, &ex1, &ey1);
-                if (rects_intersect_i32(x0, y0, x1, y1, ex0 - 2, ey0 - 2, ex1 + 2, ey1 + 2))
-                {
-                    edgeai_draw_env_axes();
-                }
-            }
+            edgeai_draw_env_walls_rect(x0, y0, x1, y1);
 
             for (int i = 0; i < TRAIL_N; i++)
             {
