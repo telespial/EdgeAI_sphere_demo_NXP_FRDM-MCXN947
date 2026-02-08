@@ -439,7 +439,11 @@ int main(void)
                 if (sy1 > maxy_r) maxy_r = sy1;
             }
 
-            /* Trail dots (include max dot radius) */
+            /* For raster mode we keep the clear region bounded to ball+shadow only and
+             * explicitly erase the trail point that falls out of the ring buffer.
+             * For single-blit mode we must include all trail dots in the tile.
+             */
+#if EDGEAI_RENDER_SINGLE_BLIT
             for (int i = 0; i < TRAIL_N; i++)
             {
                 int32_t tx = trail_x[i];
@@ -449,12 +453,11 @@ int main(void)
                 if ((ty - dot_r_max) < miny_r) miny_r = (ty - dot_r_max);
                 if ((ty + dot_r_max) > maxy_r) maxy_r = (ty + dot_r_max);
             }
-
-            /* Removed dot */
             if ((removed_tx - dot_r_max) < minx_r) minx_r = (removed_tx - dot_r_max);
             if ((removed_tx + dot_r_max) > maxx_r) maxx_r = (removed_tx + dot_r_max);
             if ((removed_ty - dot_r_max) < miny_r) miny_r = (removed_ty - dot_r_max);
             if ((removed_ty + dot_r_max) > maxy_r) maxy_r = (removed_ty + dot_r_max);
+#endif
 
             int32_t x0 = clamp_i32(minx_r, 0, LCD_W - 1);
             int32_t y0 = clamp_i32(miny_r, 0, LCD_H - 1);
@@ -503,6 +506,9 @@ int main(void)
             /* "Raster" mode: draw directly to LCD using multiple operations.
              * This is intentionally not a single-blit path; it can show tearing/raster lines.
              */
+            /* Explicitly erase the point that fell out of the trail ring (prevents ghost dots). */
+            par_lcd_s035_draw_filled_circle(removed_tx, removed_ty, dot_r_max, 0x0000u);
+
             par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
 
             for (int i = 0; i < TRAIL_N; i++)
