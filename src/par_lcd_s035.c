@@ -422,10 +422,8 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
         for (int32_t x = sx0; x <= sx1; x++)
         {
             int32_t dx = x - cx;
+            /* For x in [sx0..sx1] (computed from dx_max), we are inside the circle. */
             uint32_t d2 = (uint32_t)(dx * dx + dy2);
-            if (d2 > r2) continue;
-
-            /* z = sqrt(r^2 - x^2 - y^2) */
             uint32_t zz = isqrt_u32(r2 - d2);
 
             /* Normal in Q14: n = (dx,dy,z)/r. */
