@@ -27,9 +27,11 @@ typedef struct
 
 void render_world_init(render_state_t *rs, int32_t cx, int32_t cy);
 
+/* Full-screen background draw (tiled to fit EDGEAI_TILE_MAX_*). */
+void render_world_draw_full_background(void);
+
 /* Renders one frame if do_render is true. Returns true when a draw was issued. */
 bool render_world_draw(render_state_t *rs,
                        const sim_world_t *world,
                        bool do_render,
                        const render_hud_t *hud);
-

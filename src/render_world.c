@@ -10,6 +10,11 @@
 #define EDGEAI_RENDER_SINGLE_BLIT 1
 #endif
 
+#if EDGEAI_RENDER_SINGLE_BLIT
+/* Single tile buffer shared by all renderer paths. */
+static uint16_t s_tile[EDGEAI_TILE_MAX_W * EDGEAI_TILE_MAX_H];
+#endif
+
 static int32_t edgeai_ball_r_for_y(int32_t cy)
 {
     const int32_t y_far = 26;
@@ -42,6 +47,28 @@ void render_world_init(render_state_t *rs, int32_t cx, int32_t cy)
     rs->prev_x = cx;
     rs->prev_y = cy;
     rs->frame = 0;
+}
+
+void render_world_draw_full_background(void)
+{
+#if EDGEAI_RENDER_SINGLE_BLIT
+    for (int32_t y0 = 0; y0 < EDGEAI_LCD_H; y0 += EDGEAI_TILE_MAX_H)
+    {
+        int32_t y1 = y0 + EDGEAI_TILE_MAX_H - 1;
+        if (y1 >= EDGEAI_LCD_H) y1 = EDGEAI_LCD_H - 1;
+        int32_t h = y1 - y0 + 1;
+
+        for (int32_t x0 = 0; x0 < EDGEAI_LCD_W; x0 += EDGEAI_TILE_MAX_W)
+        {
+            int32_t x1 = x0 + EDGEAI_TILE_MAX_W - 1;
+            if (x1 >= EDGEAI_LCD_W) x1 = EDGEAI_LCD_W - 1;
+            int32_t w = x1 - x0 + 1;
+
+            sw_render_dune_bg(s_tile, (uint32_t)w, (uint32_t)h, x0, y0);
+            par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
+        }
+    }
+#endif
 }
 
 bool render_world_draw(render_state_t *rs,
@@ -117,9 +144,7 @@ bool render_world_draw(render_state_t *rs,
     }
 
 #if EDGEAI_RENDER_SINGLE_BLIT
-    static uint16_t tile[EDGEAI_TILE_MAX_W * EDGEAI_TILE_MAX_H];
-
-    sw_render_dune_bg(tile, (uint32_t)w, (uint32_t)h, x0, y0);
+    sw_render_dune_bg(s_tile, (uint32_t)w, (uint32_t)h, x0, y0);
 
     for (int i = 0; i < EDGEAI_TRAIL_N; i++)
     {
@@ -128,11 +153,11 @@ bool render_world_draw(render_state_t *rs,
         int32_t ty = rs->trail_y[idx];
         int r0 = 1 + (i / 6);
         uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
-        sw_render_filled_circle(tile, (uint32_t)w, (uint32_t)h, x0, y0, tx, ty, r0, c);
+        sw_render_filled_circle(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, tx, ty, r0, c);
     }
 
-    sw_render_ball_shadow(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw);
-    sw_render_silver_ball(tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw, rs->frame++, world->ball.glint);
+    sw_render_ball_shadow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw);
+    sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw, rs->frame++, world->ball.glint);
 
     char d3[4];
     edgeai_u32_to_dec3(d3, hud->fps_last);
@@ -143,9 +168,9 @@ bool render_world_draw(render_state_t *rs,
     status[9] = ' '; status[10] = 'N'; status[11] = ':'; status[12] = hud->npu_init_ok ? '1' : '0';
     status[13] = ' '; status[14] = 'I'; status[15] = ':'; status[16] = hud->npu_run_enabled ? '1' : '0';
     status[17] = '\0';
-    sw_render_text5x7(tile, (uint32_t)w, (uint32_t)h, x0, y0, ov_x0, ov_y0, status, 0x001Fu);
+    sw_render_text5x7(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, ov_x0, ov_y0, status, 0x001Fu);
 
-    par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
+    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
 #else
     uint16_t bg = hud->accel_fail ? 0x1800u : 0x0000u;
     par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
@@ -179,4 +204,3 @@ bool render_world_draw(render_state_t *rs,
     rs->prev_y = cy;
     return true;
 }
-

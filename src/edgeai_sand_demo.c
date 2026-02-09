@@ -113,10 +113,10 @@ int main(void)
         /* Can't proceed without display in this demo. */
         for (;;) {}
     }
-    par_lcd_s035_fill(0x0000u); /* boot stays black (dune reveals with motion) */
+    par_lcd_s035_fill(0x0000u); /* black behind boot title */
     edgeai_draw_boot_title_sand_dune();
     SDK_DelayAtLeastUs(3000000u, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
-    par_lcd_s035_fill(0x0000u);
+    render_world_draw_full_background();
 
     /* Print banner early; previous hangs made it hard to tell if firmware was alive. */
     PRINTF("EDGEAI: boot %s %s\r\n", __DATE__, __TIME__);
