@@ -11,7 +11,7 @@ Source of truth:
 
 ## How To Restore
 ```bash
-cd /path/to/EdgeAI_sand_demo
+cd /path/to/EdgeAI_sphere_demo_NXP_FRDM-MCXN947
 git fetch --tags
 git checkout <TAG>
 MCUX_EXAMPLES_DIR="$PWD/mcuxsdk_ws_test/mcuxsdk/examples" ./sdk_example/install_mcux_overlay.sh
