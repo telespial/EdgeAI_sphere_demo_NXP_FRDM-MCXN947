@@ -51,6 +51,30 @@ void render_world_draw_full_background(void)
 #endif
 }
 
+static void render_world_draw_hud_tile(uint16_t *dst, uint32_t w, uint32_t h,
+                                      int32_t x0, int32_t y0,
+                                      const render_hud_t *hud)
+{
+    if (!dst || !hud) return;
+
+    /* HUD region (top-right). */
+    const int32_t ov_w = 120;
+    const int32_t ov_x0 = EDGEAI_LCD_W - ov_w - 2;
+    const int32_t ov_y0 = 2;
+
+    char d3[4];
+    edgeai_u32_to_dec3(d3, hud->fps_last);
+    char status[18];
+    /* Format: C:XYZ B:S N:0 I:0 */
+    status[0] = 'C'; status[1] = ':'; status[2] = d3[0]; status[3] = d3[1]; status[4] = d3[2];
+    status[5] = ' '; status[6] = 'B'; status[7] = ':'; status[8] = hud->npu_backend;
+    status[9] = ' '; status[10] = 'N'; status[11] = ':'; status[12] = hud->npu_init_ok ? '1' : '0';
+    status[13] = ' '; status[14] = 'I'; status[15] = ':'; status[16] = hud->npu_run_enabled ? '1' : '0';
+    status[17] = '\0';
+
+    sw_render_text5x7(dst, w, h, x0, y0, ov_x0, ov_y0, status, 0x001Fu);
+}
+
 bool render_world_draw(render_state_t *rs,
                        const sim_world_t *world,
                        bool do_render,
@@ -109,8 +133,10 @@ bool render_world_draw(render_state_t *rs,
 
     int32_t w = x1 - x0 + 1;
     int32_t h = y1 - y0 + 1;
+    bool did_clamp = false;
     if (w > EDGEAI_TILE_MAX_W || h > EDGEAI_TILE_MAX_H)
     {
+        did_clamp = true;
         int32_t halfw = EDGEAI_TILE_MAX_W / 2;
         int32_t halfh = EDGEAI_TILE_MAX_H / 2;
         int32_t ccx = (minx_r + maxx_r) / 2;
@@ -137,20 +163,48 @@ bool render_world_draw(render_state_t *rs,
     }
 
     sw_render_ball_shadow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw);
-    sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw, rs->frame++, world->ball.glint);
+    uint32_t frame = rs->frame++;
+    sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy, r_draw, frame, world->ball.glint);
+	    render_world_draw_hud_tile(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, hud);
 
-    char d3[4];
-    edgeai_u32_to_dec3(d3, hud->fps_last);
-    char status[40];
-    /* Format: C:XYZ B:S N:0 I:0 */
-    status[0] = 'C'; status[1] = ':'; status[2] = d3[0]; status[3] = d3[1]; status[4] = d3[2];
-    status[5] = ' '; status[6] = 'B'; status[7] = ':'; status[8] = hud->npu_backend;
-    status[9] = ' '; status[10] = 'N'; status[11] = ':'; status[12] = hud->npu_init_ok ? '1' : '0';
-    status[13] = ' '; status[14] = 'I'; status[15] = ':'; status[16] = hud->npu_run_enabled ? '1' : '0';
-    status[17] = '\0';
-    sw_render_text5x7(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, ov_x0, ov_y0, status, 0x001Fu);
+	    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
 
-    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
+	    /* If the main dirty-rect is clamped, the removed trail point can fall outside the
+	     * final blit region and remain "stuck" on the LCD. Issue a tiny cleanup blit around
+	     * the removed point to clear stale pixels.
+	     */
+	    if (did_clamp)
+	    {
+	        const int32_t erase_pad = 6; /* dot radius <= 2; keep a small safety margin */
+	        if ((removed_tx - erase_pad) < x0 || (removed_tx + erase_pad) > x1 ||
+	            (removed_ty - erase_pad) < y0 || (removed_ty + erase_pad) > y1)
+	        {
+	            int32_t ex0 = edgeai_clamp_i32(removed_tx - erase_pad, 0, EDGEAI_LCD_W - 1);
+	            int32_t ey0 = edgeai_clamp_i32(removed_ty - erase_pad, 0, EDGEAI_LCD_H - 1);
+	            int32_t ex1 = edgeai_clamp_i32(removed_tx + erase_pad, 0, EDGEAI_LCD_W - 1);
+	            int32_t ey1 = edgeai_clamp_i32(removed_ty + erase_pad, 0, EDGEAI_LCD_H - 1);
+	            int32_t ew = ex1 - ex0 + 1;
+	            int32_t eh = ey1 - ey0 + 1;
+
+	            sw_render_dune_bg(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0);
+
+	            for (int i = 0; i < EDGEAI_TRAIL_N; i++)
+	            {
+                uint32_t idx = (rs->trail_head + (uint32_t)i) % EDGEAI_TRAIL_N;
+                int32_t tx = rs->trail_x[idx];
+                int32_t ty = rs->trail_y[idx];
+                int r0 = 1 + (i / 6);
+                uint16_t c = (i < 6) ? 0x39E7u : 0x18C3u;
+                sw_render_filled_circle(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, tx, ty, r0, c);
+            }
+
+            sw_render_ball_shadow(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy, r_draw);
+            sw_render_silver_ball(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy, r_draw, frame, world->ball.glint);
+            render_world_draw_hud_tile(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, hud);
+
+	            par_lcd_s035_blit_rect(ex0, ey0, ex1, ey1, s_tile);
+	        }
+	    }
 #else
     uint16_t bg = hud->accel_fail ? 0x1800u : 0x0000u;
     par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
