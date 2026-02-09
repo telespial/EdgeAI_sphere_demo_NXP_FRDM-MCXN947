@@ -17,6 +17,10 @@ void sim_step(sim_world_t *w, const sim_input_t *in, const sim_params_t *p)
 {
     if (!w || !in || !p) return;
 
+    /* One-shot velocity impulse from an impact/bang (provided by the main loop). */
+    w->ball.vx_q16 += in->bang_dvx_q16;
+    w->ball.vy_q16 += in->bang_dvy_q16;
+
     /* soft_q15 * a_px_s2 gives Q15 px/s^2; convert to Q16 by <<1 */
     int32_t ax_a_q16 = (int32_t)(((int64_t)in->ax_soft_q15 * p->a_px_s2) << 1);
     int32_t ay_a_q16 = (int32_t)(((int64_t)in->ay_soft_q15 * p->a_px_s2) << 1);

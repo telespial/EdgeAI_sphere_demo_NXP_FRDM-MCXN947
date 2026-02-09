@@ -76,6 +76,59 @@ static void dwt_cycle_counter_init(void)
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
+static void edgeai_compute_bang_impulse_q16(const accel_proc_out_t *aout,
+                                            int32_t tilt_ax_soft_q15,
+                                            int32_t tilt_ay_soft_q15,
+                                            int32_t *out_dvx_q16,
+                                            int32_t *out_dvy_q16)
+{
+    if (!out_dvx_q16 || !out_dvy_q16) return;
+    *out_dvx_q16 = 0;
+    *out_dvy_q16 = 0;
+    if (!aout) return;
+    if (!aout->bang_pulse) return;
+
+    int32_t over = aout->bang_score - EDGEAI_BANG_THRESHOLD;
+    if (over <= 0) return;
+
+    int32_t over_q15 = (int32_t)(((int64_t)over << 15) / (int64_t)EDGEAI_ACCEL_MAP_DENOM);
+    if (over_q15 > 32767) over_q15 = 32767;
+
+    int32_t dv_mag_q16 = (int32_t)(((int64_t)over_q15 * (int64_t)EDGEAI_BANG_GAIN_Q16) >> 15);
+
+    /* Direction: prefer XY high-pass. Fall back to current tilt direction if the bang is mostly vertical. */
+    int32_t dx = aout->ax_hp;
+    int32_t dy = aout->ay_hp;
+    int32_t l1 = edgeai_abs_i32(dx) + edgeai_abs_i32(dy);
+
+    int32_t ux_q15 = 0;
+    int32_t uy_q15 = 0;
+    if (l1 >= 20)
+    {
+        ux_q15 = (int32_t)(((int64_t)dx << 15) / (int64_t)l1);
+        uy_q15 = (int32_t)(((int64_t)dy << 15) / (int64_t)l1);
+    }
+    else
+    {
+        int32_t tx = tilt_ax_soft_q15;
+        int32_t ty = tilt_ay_soft_q15;
+        int32_t tl1 = edgeai_abs_i32(tx) + edgeai_abs_i32(ty);
+        if (tl1 >= 10)
+        {
+            ux_q15 = (int32_t)(((int64_t)tx << 15) / (int64_t)tl1);
+            uy_q15 = (int32_t)(((int64_t)ty << 15) / (int64_t)tl1);
+        }
+        else
+        {
+            ux_q15 = 32767;
+            uy_q15 = 0;
+        }
+    }
+
+    *out_dvx_q16 = (int32_t)(((int64_t)ux_q15 * (int64_t)dv_mag_q16) >> 15);
+    *out_dvy_q16 = (int32_t)(((int64_t)uy_q15 * (int64_t)dv_mag_q16) >> 15);
+}
+
 static void edgeai_draw_boot_title_sand_dune(void)
 {
     const int32_t scale = 7;
@@ -216,6 +269,13 @@ int main(void)
     sim_p.maxx = (EDGEAI_LCD_W - 1) - (EDGEAI_BALL_R_MAX + 2);
     sim_p.maxy = (EDGEAI_LCD_H - 1) - (EDGEAI_BALL_R_MAX + 2);
 
+    /* If the loop runs very fast, dt can be too small to hit a sim sub-step every
+     * iteration. Hold a pending bang impulse until the next sim_step().
+     */
+    bool bang_pending = false;
+    int32_t bang_pending_dvx_q16 = 0;
+    int32_t bang_pending_dvy_q16 = 0;
+
     for (;;)
     {
         bool accel_ok = false;
@@ -261,17 +321,35 @@ int main(void)
         sim_accum_q16 += dt_q16;
 
         accel_proc_out_t aout;
-        accel_proc_update(&accel_proc, (int32_t)s.x, (int32_t)s.y, &aout);
+        accel_proc_update(&accel_proc, (int32_t)s.x, (int32_t)s.y, (int32_t)s.z, &aout);
 
-        sim_input_t sin;
-        sin.ax_soft_q15 = aout.ax_soft_q15;
-        sin.ay_soft_q15 = aout.ay_soft_q15;
+        if (aout.bang_pulse)
+        {
+            edgeai_compute_bang_impulse_q16(&aout, aout.ax_soft_q15, aout.ay_soft_q15,
+                                            &bang_pending_dvx_q16, &bang_pending_dvy_q16);
+            bang_pending = true;
+        }
+
+        sim_input_t sin_base;
+        sin_base.ax_soft_q15 = aout.ax_soft_q15;
+        sin_base.ay_soft_q15 = aout.ay_soft_q15;
+        sin_base.bang_dvx_q16 = 0;
+        sin_base.bang_dvy_q16 = 0;
 
         int iter = 0;
         while ((sim_accum_q16 >= sim_step_q16) && (iter < 6))
         {
             sim_accum_q16 -= sim_step_q16;
             iter++;
+            sim_input_t sin = sin_base;
+            if (bang_pending)
+            {
+                sin.bang_dvx_q16 = bang_pending_dvx_q16;
+                sin.bang_dvy_q16 = bang_pending_dvy_q16;
+                bang_pending = false;
+                bang_pending_dvx_q16 = 0;
+                bang_pending_dvy_q16 = 0;
+            }
             sim_step(&world, &sin, &sim_p);
         }
 
@@ -310,10 +388,12 @@ int main(void)
             stats_frames = 0;
             int32_t cx = world.ball.x_q16 >> 16;
             int32_t cy = world.ball.y_q16 >> 16;
-            PRINTF("EDGEAI: fps=%u raw=(%d,%d,%d) lp=(%d,%d) pos=(%d,%d) v=(%d,%d) glint=%u npu=%u\r\n",
+            PRINTF("EDGEAI: fps=%u raw=(%d,%d,%d) lp=(%d,%d,%d) hp=(%d,%d,%d) bang=%d pos=(%d,%d) v=(%d,%d) glint=%u npu=%u\r\n",
                    (unsigned)fps,
                    (int)s.x, (int)s.y, (int)s.z,
-                   (int)aout.ax_lp, (int)aout.ay_lp,
+                   (int)aout.ax_lp, (int)aout.ay_lp, (int)aout.az_lp,
+                   (int)aout.ax_hp, (int)aout.ay_hp, (int)aout.az_hp,
+                   (int)aout.bang_score,
                    (int)cx, (int)cy,
                    (int)(world.ball.vx_q16 >> 16), (int)(world.ball.vy_q16 >> 16),
                    (unsigned)world.ball.glint,

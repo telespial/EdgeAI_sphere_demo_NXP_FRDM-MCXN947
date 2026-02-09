@@ -20,6 +20,8 @@ typedef struct
 {
     int32_t ax_soft_q15;
     int32_t ay_soft_q15;
+    int32_t bang_dvx_q16;
+    int32_t bang_dvy_q16;
 } sim_input_t;
 
 typedef struct
@@ -35,4 +37,3 @@ typedef struct
 
 void sim_world_init(sim_world_t *w, int32_t lcd_w, int32_t lcd_h);
 void sim_step(sim_world_t *w, const sim_input_t *in, const sim_params_t *p);
-

@@ -38,6 +38,18 @@ static inline int32_t edgeai_ball_r_for_y(int32_t cy)
  */
 #define EDGEAI_ACCEL_MAP_DENOM 512
 
+/* Impact ("bang") detection tuning.
+ * Uses a high-pass term: hp = raw - low-pass(raw), in raw sensor counts.
+ */
+#ifndef EDGEAI_BANG_THRESHOLD
+#define EDGEAI_BANG_THRESHOLD 220
+#endif
+
+/* Max velocity impulse (px/s, Q16) for a strong bang (>= ~1g over threshold). */
+#ifndef EDGEAI_BANG_GAIN_Q16
+#define EDGEAI_BANG_GAIN_Q16 (250 << 16)
+#endif
+
 /* Render tile limits (single-blit path). */
 #define EDGEAI_TILE_MAX_W 200
 #define EDGEAI_TILE_MAX_H 200
