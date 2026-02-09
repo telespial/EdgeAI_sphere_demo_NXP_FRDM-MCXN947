@@ -20,6 +20,10 @@
 #define LCD_W 480
 #define LCD_H 320
 
+/* Tile renderer maximum blit size. Keep in sync with the tile buffer allocation. */
+#define EDGEAI_TILE_MAX_W 200
+#define EDGEAI_TILE_MAX_H 200
+
 /* Ball radius tuning.
  * We apply a simple depth cue: ball gets smaller toward the top ("far") and larger toward the
  * bottom ("near") to better match the dune background's perspective.
@@ -156,6 +160,83 @@ static int32_t clamp_i32_sym(int32_t v, int32_t limit_abs)
     return v;
 }
 
+static uint32_t edgeai_xorshift32(uint32_t *s)
+{
+    /* Simple deterministic PRNG for waypoint selection. */
+    uint32_t x = (*s == 0u) ? 0x6D2B79F5u : *s;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *s = x;
+    return x;
+}
+
+#if EDGEAI_RENDER_SINGLE_BLIT
+static void edgeai_render_full_dune(uint16_t *tile)
+{
+    for (int32_t y0 = 0; y0 < LCD_H; y0 += EDGEAI_TILE_MAX_H)
+    {
+        for (int32_t x0 = 0; x0 < LCD_W; x0 += EDGEAI_TILE_MAX_W)
+        {
+            int32_t w = LCD_W - x0;
+            int32_t h = LCD_H - y0;
+            if (w > EDGEAI_TILE_MAX_W) w = EDGEAI_TILE_MAX_W;
+            if (h > EDGEAI_TILE_MAX_H) h = EDGEAI_TILE_MAX_H;
+            int32_t x1 = x0 + w - 1;
+            int32_t y1 = y0 + h - 1;
+
+            sw_render_dune_bg(tile, (uint32_t)w, (uint32_t)h, x0, y0);
+            par_lcd_s035_blit_rect(x0, y0, x1, y1, tile);
+        }
+    }
+}
+#endif
+
+static bool edgeai_init_accel(fxls8974_dev_t *dev, uint8_t *who_out)
+{
+    if (who_out) *who_out = 0;
+    if (!dev) return false;
+
+    /* Init I2C for the accel (mikroBUS). */
+    lpi2c_master_config_t masterCfg;
+    LPI2C_MasterGetDefaultConfig(&masterCfg);
+    /* Be conservative; some shield/cable setups are flaky at 400k. */
+    masterCfg.baudRate_Hz = 100000u;
+    LPI2C_MasterInit(EDGEAI_I2C, &masterCfg, edgeai_i2c_get_freq());
+
+    const uint8_t addrs[] = {ACCEL4_CLICK_I2C_ADDR0, ACCEL4_CLICK_I2C_ADDR1};
+    uint8_t who = 0;
+    bool found = false;
+    /* Retry accel bring-up briefly; cold boots can race sensor power-up. */
+    for (uint32_t tries = 0; tries < 200; tries++) /* ~2s */
+    {
+        for (size_t i = 0; i < (sizeof(addrs) / sizeof(addrs[0])); i++)
+        {
+            dev->addr7 = addrs[i];
+            if (fxls8974_read_whoami(dev, &who) && (who == FXLS8974_WHO_AM_I_VALUE))
+            {
+                found = true;
+                break;
+            }
+        }
+        if (found) break;
+        SDK_DelayAtLeastUs(10000u, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
+    }
+
+    if (who_out) *who_out = who;
+    if (!found)
+    {
+        PRINTF("EDGEAI: FXLS8974CF not found (WHO_AM_I=0x%02x). Continuing without accel.\r\n", who);
+        return false;
+    }
+
+    (void)fxls8974_set_active(dev, false);
+    (void)fxls8974_set_fsr(dev, FXLS8974_FSR_4G);
+    (void)fxls8974_set_active(dev, true);
+    PRINTF("EDGEAI: accel ok addr=0x%02x\r\n", (unsigned)dev->addr7);
+    return true;
+}
+
 static const uint8_t *edgeai_glyph5x7(char c)
 {
     /* Each glyph is 7 rows, 5 bits wide, MSB-first in the low 5 bits (bit 4..0). */
@@ -264,48 +345,14 @@ int main(void)
     /* Print banner early; previous hangs made it hard to tell if firmware was alive. */
     PRINTF("EDGEAI: boot %s %s\r\n", __DATE__, __TIME__);
 
-    /* Init I2C for the accel (mikroBUS). */
-    lpi2c_master_config_t masterCfg;
-    LPI2C_MasterGetDefaultConfig(&masterCfg);
-    /* Be conservative; some shield/cable setups are flaky at 400k. */
-    masterCfg.baudRate_Hz = 100000u;
-    LPI2C_MasterInit(EDGEAI_I2C, &masterCfg, edgeai_i2c_get_freq());
-
     fxls8974_dev_t dev = {
         .addr7 = 0,
         .write = edgeai_i2c_write,
         .read = edgeai_i2c_read,
     };
-
-    const uint8_t addrs[] = {ACCEL4_CLICK_I2C_ADDR0, ACCEL4_CLICK_I2C_ADDR1};
     uint8_t who = 0;
     bool found = false;
-    /* Retry accel bring-up briefly; cold boots can race sensor power-up. */
-    for (uint32_t tries = 0; tries < 200; tries++) /* ~2s */
-    {
-        for (size_t i = 0; i < (sizeof(addrs) / sizeof(addrs[0])); i++)
-        {
-            dev.addr7 = addrs[i];
-            if (fxls8974_read_whoami(&dev, &who) && (who == FXLS8974_WHO_AM_I_VALUE))
-            {
-                found = true;
-                break;
-            }
-        }
-        if (found) break;
-        SDK_DelayAtLeastUs(10000u, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
-    }
-    if (!found)
-    {
-        PRINTF("EDGEAI: FXLS8974CF not found (WHO_AM_I=0x%02x). Continuing without accel.\r\n", who);
-    }
-    else
-    {
-        (void)fxls8974_set_active(&dev, false);
-        (void)fxls8974_set_fsr(&dev, FXLS8974_FSR_4G);
-        (void)fxls8974_set_active(&dev, true);
-        PRINTF("EDGEAI: accel ok addr=0x%02x\r\n", (unsigned)dev.addr7);
-    }
+    bool accel_inited = false;
 
     bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
     edgeai_tensor_dims_t in_dims = {0};
@@ -350,11 +397,35 @@ int main(void)
     uint32_t stats_frames = 0;
 
     /* Maximum dirty-rect size. Even in raster mode we clamp work per frame. */
-    enum { TILE_MAX_W = 200, TILE_MAX_H = 200 };
+    enum { TILE_MAX_W = EDGEAI_TILE_MAX_W, TILE_MAX_H = EDGEAI_TILE_MAX_H };
 #if EDGEAI_RENDER_SINGLE_BLIT
     /* Tile renderer (one LCD blit per frame to avoid tearing/flicker). */
     static uint16_t tile[TILE_MAX_W * TILE_MAX_H];
 #endif
+
+    /* Intro routine: after the boot title, drive the ball via synthetic input to paint the dune
+     * background over the entire screen (so no black remains), then enable accel input.
+     */
+    typedef enum { EDGEAI_MODE_AUTOPAINT = 0, EDGEAI_MODE_NORMAL = 1 } edgeai_mode_t;
+    edgeai_mode_t mode = EDGEAI_MODE_AUTOPAINT;
+
+    /* Coverage tracking: mark a coarse grid as visited when the ball enters a cell. When all
+     * cells are visited, do a final full-screen dune sweep and hand off to the accelerometer.
+     */
+    enum { CELL_W = 40, CELL_H = 40, GRID_COLS = (LCD_W / CELL_W), GRID_ROWS = (LCD_H / CELL_H) };
+    enum { GRID_N = GRID_COLS * GRID_ROWS };
+    uint8_t visited[GRID_N];
+    memset(visited, 0, sizeof(visited));
+    uint32_t visited_n = 0;
+
+    uint32_t rng = (uint32_t)DWT->CYCCNT ^ 0xA341316Cu;
+    int32_t target_x = prev_x;
+    int32_t target_y = prev_y;
+
+    const int32_t bound_minx = BALL_R_MAX + 2;
+    const int32_t bound_miny = BALL_R_MAX + 2;
+    const int32_t bound_maxx = (LCD_W - 1) - (BALL_R_MAX + 2);
+    const int32_t bound_maxy = (LCD_H - 1) - (BALL_R_MAX + 2);
 
     /* Boot banner: keep it short and printf-lite compatible (avoid %ld). */
     PRINTF("EDGEAI: tilt-ball (npu_init=%u npu_run=%u render=%s)\r\n",
@@ -381,7 +452,7 @@ int main(void)
     for (;;)
     {
         bool accel_ok = false;
-        if (found)
+        if ((mode == EDGEAI_MODE_NORMAL) && found)
         {
             accel_ok = fxls8974_read_sample_12b(&dev, &s);
         }
@@ -465,6 +536,50 @@ int main(void)
         int32_t ay_soft_q15 = (int32_t)(((int64_t)ay_n_q15 * alpha_q15 +
                                          (int64_t)ay_cu_q15 * ((1 << 15) - alpha_q15)) >> 15);
 
+        if (mode == EDGEAI_MODE_AUTOPAINT)
+        {
+            /* Choose a random unvisited cell to steer toward. */
+            if (visited_n < GRID_N)
+            {
+                int idx = -1;
+                for (int t = 0; t < 64; t++)
+                {
+                    int cand = (int)(edgeai_xorshift32(&rng) % (uint32_t)GRID_N);
+                    if (!visited[cand]) { idx = cand; break; }
+                }
+                if (idx < 0)
+                {
+                    for (int i = 0; i < GRID_N; i++) if (!visited[i]) { idx = i; break; }
+                }
+                if (idx >= 0)
+                {
+                    int row = idx / GRID_COLS;
+                    int col = idx % GRID_COLS;
+                    int32_t tx = col * CELL_W + (CELL_W / 2);
+                    int32_t ty = row * CELL_H + (CELL_H / 2);
+                    target_x = clamp_i32(tx, bound_minx, bound_maxx);
+                    target_y = clamp_i32(ty, bound_miny, bound_maxy);
+                }
+            }
+
+            /* Autopilot: PD controller to drive toward the current target. */
+            int32_t cx_now = x_q16 >> 16;
+            int32_t cy_now = y_q16 >> 16;
+            int32_t ex = target_x - cx_now;
+            int32_t ey = target_y - cy_now;
+            int32_t vx_px_s = vx_q16 >> 16;
+            int32_t vy_px_s = vy_q16 >> 16;
+
+            const int32_t a_px_s2 = 4200;
+            int32_t ux = ex * 28 - vx_px_s * 85;
+            int32_t uy = ey * 28 - vy_px_s * 85;
+            ux = clamp_i32(ux, -a_px_s2, a_px_s2);
+            uy = clamp_i32(uy, -a_px_s2, a_px_s2);
+
+            ax_soft_q15 = (int32_t)(((int64_t)ux * 32767) / (int64_t)a_px_s2);
+            ay_soft_q15 = (int32_t)(((int64_t)uy * 32767) / (int64_t)a_px_s2);
+        }
+
         /* If accel read is failing, force a visible change so it doesn't look like
          * the demo is broken in a mysterious way.
          */
@@ -518,6 +633,37 @@ int main(void)
 
         if (do_render)
         {
+            if (mode == EDGEAI_MODE_AUTOPAINT)
+            {
+                /* Mark coverage based on current ball center. */
+                int32_t gx = cx / CELL_W;
+                int32_t gy = cy / CELL_H;
+                if (gx < 0) gx = 0;
+                if (gy < 0) gy = 0;
+                if (gx >= GRID_COLS) gx = GRID_COLS - 1;
+                if (gy >= GRID_ROWS) gy = GRID_ROWS - 1;
+                int gi = gy * GRID_COLS + gx;
+                if ((gi >= 0) && (gi < GRID_N) && !visited[gi])
+                {
+                    visited[gi] = 1u;
+                    visited_n++;
+                }
+
+                if (visited_n >= GRID_N)
+                {
+#if EDGEAI_RENDER_SINGLE_BLIT
+                    /* Guarantee background fully painted (remove any remaining black). */
+                    edgeai_render_full_dune(tile);
+#endif
+                    if (!accel_inited)
+                    {
+                        found = edgeai_init_accel(&dev, &who);
+                        accel_inited = true;
+                    }
+                    mode = EDGEAI_MODE_NORMAL;
+                }
+            }
+
             /* The trail is a ring buffer; one point is "removed" each frame when we overwrite
              * the head slot. Include that removed point in the dirty rect so we clear it,
              * otherwise stale dots can remain on-screen.
