@@ -1,4 +1,4 @@
-# EdgeAI Sand Demo (FRDM-MCXN947)
+# EdgeAI Sphere Demo (FRDM-MCXN947)
 
 This repo is a hardware sandbox for FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C).
 
@@ -15,13 +15,13 @@ Current rendering notes:
 
 ## Known-Good Revision (Golden)
 If anything breaks, return to this exact revision:
-- Current golden tag: `GOLDEN_2026-02-09_v22_ball_polish_base`
-- Commit: `git rev-parse GOLDEN_2026-02-09_v22_ball_polish_base`
+- Current golden tag: `GOLDEN_2026-02-09_v23_ball_polish_a1_a4`
+- Commit: `git rev-parse GOLDEN_2026-02-09_v23_ball_polish_a1_a4`
 - Baseline golden (older): `milestone_raster_flicker_npu_v9` @ `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
 
 Checkout + rebuild + flash:
 ```bash
-git checkout GOLDEN_2026-02-09_v22_ball_polish_base
+git checkout GOLDEN_2026-02-09_v23_ball_polish_a1_a4
 MCUX_EXAMPLES_DIR="$PWD/mcuxsdk_ws_test/mcuxsdk/examples" ./sdk_example/install_mcux_overlay.sh
 ninja -C mcuxsdk_ws_test/build
 WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh

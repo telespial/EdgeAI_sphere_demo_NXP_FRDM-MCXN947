@@ -167,6 +167,14 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: same firmware behavior as v21; docs updated with a ToDo plan and tooling updated to support explicit build/flash directories.
 - Notes: baseline for implementing A1-A4 ball polish tasks; do not move this tag or its lock.
 
+### 2026-02-09 Golden (Current): Ball Polish A1-A4 (Background + Bounds + Trails + Bang)
+- Tag: `GOLDEN_2026-02-09_v23_ball_polish_a1_a4`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v23_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v23_ball_polish_a1_a4`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: draws full dune background after title; bounce bounds match perspective radius; no stuck trail dots when dirty-rect clamps; table taps produce a visible velocity kick; per-second timing instrumentation enabled.
+- Notes: this is the preferred restore point for continued work on the sandbox demo.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
