@@ -37,6 +37,7 @@ Key folders:
 2. Create/update local MCUX west workspace: `./tools/setup_mcuxsdk_ws.sh`
 3. Build: `./tools/build_frdmmcxn947.sh debug`
 4. Flash (requires NXP LinkServer installed): `./tools/flash_frdmmcxn947.sh`
+5. Install repo guardrails (optional): `./tools/install_git_hooks.sh`
 
 Serial output (optional):
 - `timeout 10 cat /dev/ttyACM0`
@@ -57,6 +58,11 @@ Two background modes exist as restore points:
 - Tile-only reveal: `milestone_dune_bg_tile_reveal_v1`
 
 For the complete list, see `docs/RESTORE_POINTS.md`.
+
+## Text Style Guardrails
+Comments and docs are required to avoid conversational phrasing and direct reader references.
+- Rules: `docs/STYLE_RULES.md`
+- Lint: `./tools/lint_text_style.sh`
 
 ## NPU Notes
 By default, the firmware initializes the NPU stack but does not run inference (to avoid any platform-specific stalls).

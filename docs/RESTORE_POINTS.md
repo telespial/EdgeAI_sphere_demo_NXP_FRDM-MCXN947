@@ -7,6 +7,7 @@ Source of truth:
 - Do not delete old entries. Prefer adding a new tag + a new entry.
 - Golden tags are **immutable**: never move an existing `GOLDEN_*` tag. If a new “current golden” is required, create a *new* `GOLDEN_*` tag instead.
 - For every golden tag, also create a `GOLDEN_LOCK_*_<SHA>` tag that bakes the target commit SHA into the tag name. Never move lock tags.
+- Text in docs/comments/scripts must avoid conversational phrasing and direct reader references. See `docs/STYLE_RULES.md`.
 
 ## How To Restore
 ```bash
