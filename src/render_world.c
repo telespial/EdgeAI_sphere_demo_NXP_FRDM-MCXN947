@@ -15,26 +15,6 @@
 static uint16_t s_tile[EDGEAI_TILE_MAX_W * EDGEAI_TILE_MAX_H];
 #endif
 
-static int32_t edgeai_ball_r_for_y(int32_t cy)
-{
-    const int32_t y_far = 26;
-    const int32_t y_near = EDGEAI_LCD_H - 26;
-    int32_t denom = (y_near - y_far);
-    int32_t t_q8 = 256;
-    if (denom > 0)
-    {
-        int32_t num = cy - y_far;
-        if (num < 0) num = 0;
-        if (num > denom) num = denom;
-        t_q8 = (num * 256) / denom;
-    }
-
-    int32_t r = EDGEAI_BALL_R_MIN + ((t_q8 * (EDGEAI_BALL_R_MAX - EDGEAI_BALL_R_MIN)) / 256);
-    if (r < EDGEAI_BALL_R_MIN) r = EDGEAI_BALL_R_MIN;
-    if (r > EDGEAI_BALL_R_MAX) r = EDGEAI_BALL_R_MAX;
-    return r;
-}
-
 void render_world_init(render_state_t *rs, int32_t cx, int32_t cy)
 {
     if (!rs) return;

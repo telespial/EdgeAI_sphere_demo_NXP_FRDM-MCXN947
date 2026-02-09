@@ -1,5 +1,6 @@
 #include "sim_world.h"
 
+#include "edgeai_config.h"
 #include "edgeai_util.h"
 
 void sim_world_init(sim_world_t *w, int32_t lcd_w, int32_t lcd_h)
@@ -31,9 +32,20 @@ void sim_step(sim_world_t *w, const sim_input_t *in, const sim_params_t *p)
 
     int32_t cx = w->ball.x_q16 >> 16;
     int32_t cy = w->ball.y_q16 >> 16;
-    if (cx < p->minx) { cx = p->minx; w->ball.x_q16 = cx << 16; w->ball.vx_q16 = -(w->ball.vx_q16 * 3) / 4; }
-    if (cx > p->maxx) { cx = p->maxx; w->ball.x_q16 = cx << 16; w->ball.vx_q16 = -(w->ball.vx_q16 * 3) / 4; }
-    if (cy < p->miny) { cy = p->miny; w->ball.y_q16 = cy << 16; w->ball.vy_q16 = -(w->ball.vy_q16 * 3) / 4; }
-    if (cy > p->maxy) { cy = p->maxy; w->ball.y_q16 = cy << 16; w->ball.vy_q16 = -(w->ball.vy_q16 * 3) / 4; }
-}
 
+    /* Bounds are based on the ball's maximum radius, but the ball is rendered with a
+     * perspective-sized radius. Expand/shrink bounds per step so the collision radius
+     * matches what is drawn.
+     */
+    int32_t r_phys = edgeai_ball_r_for_y(cy);
+    int32_t shrink = EDGEAI_BALL_R_MAX - r_phys;
+    int32_t minx = p->minx - shrink;
+    int32_t maxx = p->maxx + shrink;
+    int32_t miny = p->miny - shrink;
+    int32_t maxy = p->maxy + shrink;
+
+    if (cx < minx) { cx = minx; w->ball.x_q16 = cx << 16; w->ball.vx_q16 = -(w->ball.vx_q16 * 3) / 4; }
+    if (cx > maxx) { cx = maxx; w->ball.x_q16 = cx << 16; w->ball.vx_q16 = -(w->ball.vx_q16 * 3) / 4; }
+    if (cy < miny) { cy = miny; w->ball.y_q16 = cy << 16; w->ball.vy_q16 = -(w->ball.vy_q16 * 3) / 4; }
+    if (cy > maxy) { cy = maxy; w->ball.y_q16 = cy << 16; w->ball.vy_q16 = -(w->ball.vy_q16 * 3) / 4; }
+}
