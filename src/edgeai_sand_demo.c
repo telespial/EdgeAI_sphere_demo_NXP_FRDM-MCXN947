@@ -316,13 +316,20 @@ int main(void)
         PRINTF("EDGEAI: accel ok addr=0x%02x\r\n", (unsigned)dev.addr7);
     }
 
-    bool npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
+    bool npu_ok = false;
     edgeai_tensor_dims_t in_dims = {0};
     edgeai_tensor_type_t in_type = kEdgeAiTensorType_UINT8;
     uint8_t *in_data = NULL;
     edgeai_tensor_dims_t out_dims = {0};
     edgeai_tensor_type_t out_type = kEdgeAiTensorType_UINT8;
     uint8_t *out_data = NULL;
+    /* Guard NPU init behind the inference flag to keep boot stable on setups where
+     * model init may fault or stall.
+     */
+    if (EDGEAI_ENABLE_NPU_INFERENCE)
+    {
+        npu_ok = (EDGEAI_MODEL_Init() == kStatus_Success);
+    }
     if (npu_ok)
     {
         in_data = EDGEAI_MODEL_GetInputTensorData(&in_dims, &in_type);

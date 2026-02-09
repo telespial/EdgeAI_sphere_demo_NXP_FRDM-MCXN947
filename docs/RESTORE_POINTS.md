@@ -111,6 +111,38 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: no firmware behavior change; adds enforced rules to prevent conversational phrasing in repo text.
 - Notes: lint is `./tools/lint_text_style.sh`; optional git hook installer is `./tools/install_git_hooks.sh`.
 
+### 2026-02-09 Golden: NPU Visuals (Experimental)
+- Tag: `GOLDEN_2026-02-09_v16_npu_visuals`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v16_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v16_npu_visuals`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: attempts to use NPU output as a visual modulation input (experimental).
+- Notes: restore to v15 if boot stability regresses.
+
+### 2026-02-09 Golden: Docs Sync (Reference Pointers Updated)
+- Tag: `GOLDEN_2026-02-09_v17_docs_sync_v15`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v17_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v17_docs_sync_v15`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: no firmware behavior change; doc pointers updated for consistency.
+- Notes: this exists to preserve a known docs state.
+
+### 2026-02-09 Golden: Status Overlay (Upper Right)
+- Tag: `GOLDEN_2026-02-09_v18_status_overlay`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v18_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v18_status_overlay`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: adds a tiny blue status overlay in the upper-right (CPU FPS + NPU init/inference flags).
+- Notes: revert if overlay obscures content.
+
+### 2026-02-09 Golden (Current): Boot Stable After Title (NPU Init Guarded)
+- Tag: `GOLDEN_2026-02-09_v19_boot_stable_after_title`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v19_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v19_boot_stable_after_title`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: avoids a post-title black-screen freeze by gating NPU model init behind `EDGEAI_ENABLE_NPU_INFERENCE`.
+- Notes: keep `EDGEAI_ENABLE_NPU_INFERENCE=0` unless the model init path is verified stable on the connected board.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
