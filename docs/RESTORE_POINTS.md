@@ -18,13 +18,20 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 
 ## Restore Points
 
-### 2026-02-08 Golden (Raster Ball + Trails)
+### 2026-02-08 Golden v9 (Dune Background + Perspective Ball)
 - Tag: `GOLDEN_2026-02-08_v9`
-- Also: `milestone_raster_flicker_npu_v9`
-- Commit: `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
+- Lock tag: `GOLDEN_LOCK_2026-02-08_v9_c45d0b6` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-08_v9`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
-- Behavior: tilt-controlled silver ball with shadow + trails (raster renderer)
-- Notes: keep this as the baseline restore point if anything breaks.
+- Behavior: dune background behind tilt-controlled silver ball; ball radius scales with y-position for a simple perspective cue.
+- Notes: corrected on 2026-02-09 (this tag points at the dune+pivot build, not the older raster build).
+
+### 2026-02-08 Rescue (Working Raster Ball + Trails)
+- Tag: `RESCUE_working_raster_5d569d4`
+- Commit: `git rev-parse RESCUE_working_raster_5d569d4`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: known-good tilt-controlled silver ball with shadow + trails (raster renderer, no dune background).
+- Notes: use this if dune rendering breaks or you need a minimal stable baseline.
 
 ### 2026-02-08 Environment Walls + Axes (Background Preserved)
 - Tag: `milestone_env_walls_axes_v1`
@@ -82,6 +89,22 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: after LCD clears to black at boot, shows “SAND DUNE” centered for ~3 seconds, then clears back to black and proceeds into the normal accel-driven loop.
 - Notes: this is intentionally minimal; it does not change the dune “tile reveal” rendering behavior.
+
+### 2026-02-09 Golden v10 (Boot Title 3s, Pre-Autopaint)
+- Tag: `GOLDEN_2026-02-09_v10_boot_title_3s`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v10_cf8bc2d` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v10_boot_title_3s`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: shows “SAND DUNE” for ~3 seconds at boot, then proceeds into the normal loop.
+- Notes: this was tagged before adding the autopaint routine so rollback is trivial.
+
+### 2026-02-09 Autopaint Random Targets (Until No Black Remains)
+- Tag: `milestone_autopaint_random_until_painted_v1`
+- Lock tag: `LOCK_milestone_autopaint_random_until_painted_v1_b3fe05e` (includes SHA in name; do not move)
+- Commit: `git rev-parse milestone_autopaint_random_until_painted_v1`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: after the boot title, drives the ball toward random unvisited screen cells until the whole screen has dune background rendered (no black remains), then initializes/enables accelerometer input.
+- Notes: uses a coarse coverage grid + final full-screen dune sweep to guarantee full coverage before handoff.
 
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
