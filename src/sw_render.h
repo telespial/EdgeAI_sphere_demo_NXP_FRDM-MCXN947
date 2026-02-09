@@ -32,3 +32,6 @@ void sw_render_ball_shadow(uint16_t *dst, uint32_t w, uint32_t h,
 void sw_render_silver_ball(uint16_t *dst, uint32_t w, uint32_t h,
                            int32_t x0, int32_t y0,
                            int32_t cx, int32_t cy, int32_t r, uint32_t frame, uint8_t glint);
+void sw_render_ball_glow(uint16_t *dst, uint32_t w, uint32_t h,
+                         int32_t x0, int32_t y0,
+                         int32_t cx, int32_t cy, int32_t r, uint32_t frame, uint8_t glint);

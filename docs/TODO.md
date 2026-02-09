@@ -1,16 +1,21 @@
 # TODO.md — EdgeAI Sphere Demo Next Steps (NPU + 3D Controls)
 
-This file tracks the next features beyond the v23 ball polish baseline.
+This file tracks the next features beyond the v25 golden baseline.
+
+Current golden restore point:
+- `GOLDEN_2026-02-09_v25_roll_speed_limit`
 
 Execution order:
-1. D1: Third dimension control (board raise/lower -> ball lift)
-2. N1: Phase 1 NPU post-process (low-res CNN + composite)
-3. N2: Gesture classifier (accel time-series)
-4. N3: Surrogate physics (model-assisted sand/water/material updates)
+1. N1: Phase 1 NPU post-process (low-res CNN + composite)
+2. N2: Gesture classifier (accel time-series)
+3. N3: Surrogate physics (model-assisted sand/water/material updates)
 
 ---
 
-## D1) Third Dimension Control (HIGH)
+## D1) Third Dimension Control (DONE)
+
+Status:
+- Implemented as a vertical-motion depth cue (lift, size, and shadow intensity modulation).
 
 Goal:
 - Add a third axis of control so board raise/lower maps to an on-screen "lift" dimension for the ball.
@@ -37,12 +42,14 @@ Acceptance criteria:
 Goal:
 - Run a small fixed-weight CNN on a low-res buffer (example: `160x120`) and composite the result into the main render.
 - Target effects: edge/glow for the ball, water shimmer, sand stylization, trail enhancement.
+  - Visual priority: a more realistic reflective ball bearing (environment reflections + moving shimmer).
 
 Implementation sketch:
 - Define a low-res input buffer representing the scene (luminance, height, material ID, or stacked channels).
 - Add a post-process output buffer and a CPU composite step.
 - Keep `EDGEAI_ENABLE_NPU_INFERENCE` as a hard gate.
 - Stub backend provides a deterministic placeholder effect for comparison.
+  - First milestone: CPU fixed-weight conv stack (edge -> blur/glow) wired through the same API shape intended for NPU.
 
 Acceptance criteria:
 - With inference enabled, an obvious visual effect appears and remains stable across minutes of runtime.

@@ -158,6 +158,16 @@ static inline uint16_t sw_sample_dune_bg(int32_t gx, int32_t gy)
     return g_dune_tex[ty * DUNE_TEX_W + tx];
 }
 
+static inline uint8_t sw_luma_from_rgb565(uint16_t c)
+{
+    uint32_t r = (c >> 11) & 31u; r = (r << 3) | (r >> 2);
+    uint32_t g = (c >> 5) & 63u;  g = (g << 2) | (g >> 4);
+    uint32_t b = c & 31u;         b = (b << 3) | (b >> 2);
+    uint32_t y = (r * 77u + g * 150u + b * 29u) >> 8;
+    if (y > 255u) y = 255u;
+    return (uint8_t)y;
+}
+
 void sw_render_filled_circle(uint16_t *dst, uint32_t w, uint32_t h,
                              int32_t x0, int32_t y0,
                              int32_t cx, int32_t cy, int32_t r, uint16_t rgb565)
@@ -371,6 +381,156 @@ void sw_render_silver_ball(uint16_t *dst, uint32_t w, uint32_t h,
             }
 
             sw_put(dst, w, h, lx, ly, sw_pack_rgb565_u8(r8, g8, b8));
+	        }
+	    }
+	}
+
+void sw_render_ball_glow(uint16_t *dst, uint32_t w, uint32_t h,
+                         int32_t x0, int32_t y0,
+                         int32_t cx, int32_t cy, int32_t r, uint32_t frame, uint8_t glint)
+{
+    if (!dst || r <= 0) return;
+
+    /* Fixed-weight, low-res post effect (placeholder for a Phase 1 NPU CNN). */
+    enum { PP_W = 32, PP_H = 32, MAP_MAX = 128 };
+    static uint8_t s_luma[PP_W * PP_H];
+    static uint8_t s_edge[PP_W * PP_H];
+    static uint8_t s_blur[PP_W * PP_H];
+
+    const int32_t pad = 10;
+    int32_t bx0 = cx - (r + pad);
+    int32_t bx1 = cx + (r + pad);
+    int32_t by0 = cy - (r + pad);
+    int32_t by1 = cy + (r + pad);
+
+    /* Clamp glow region to the tile buffer. */
+    int32_t tx0 = x0;
+    int32_t tx1 = x0 + (int32_t)w - 1;
+    int32_t ty0 = y0;
+    int32_t ty1 = y0 + (int32_t)h - 1;
+    if (bx0 < tx0) bx0 = tx0;
+    if (bx1 > tx1) bx1 = tx1;
+    if (by0 < ty0) by0 = ty0;
+    if (by1 > ty1) by1 = ty1;
+
+    int32_t rw = bx1 - bx0 + 1;
+    int32_t rh = by1 - by0 + 1;
+    if (rw < 8 || rh < 8) return;
+    if (rw > MAP_MAX || rh > MAP_MAX) return;
+
+    /* Downsample luma from the tile into a small grid. */
+    int32_t sx[PP_W];
+    int32_t sy[PP_H];
+    for (int32_t i = 0; i < PP_W; i++)
+    {
+        sx[i] = bx0 + (int32_t)(((int64_t)i * rw + (rw / 2)) / PP_W);
+    }
+    for (int32_t j = 0; j < PP_H; j++)
+    {
+        sy[j] = by0 + (int32_t)(((int64_t)j * rh + (rh / 2)) / PP_H);
+    }
+    for (int32_t j = 0; j < PP_H; j++)
+    {
+        int32_t gy = sy[j];
+        uint32_t ly = (uint32_t)(gy - y0);
+        for (int32_t i = 0; i < PP_W; i++)
+        {
+            int32_t gx = sx[i];
+            uint32_t lx = (uint32_t)(gx - x0);
+            s_luma[(uint32_t)j * PP_W + (uint32_t)i] = sw_luma_from_rgb565(dst[ly * w + lx]);
+        }
+    }
+
+    /* Edge magnitude (Sobel). */
+    for (int32_t j = 0; j < PP_H; j++)
+    {
+        for (int32_t i = 0; i < PP_W; i++)
+        {
+            if (i == 0 || j == 0 || i == (PP_W - 1) || j == (PP_H - 1))
+            {
+                s_edge[(uint32_t)j * PP_W + (uint32_t)i] = 0;
+                continue;
+            }
+
+            int32_t idx = j * PP_W + i;
+            int32_t l00 = (int32_t)s_luma[(uint32_t)(idx - PP_W - 1)];
+            int32_t l01 = (int32_t)s_luma[(uint32_t)(idx - PP_W)];
+            int32_t l02 = (int32_t)s_luma[(uint32_t)(idx - PP_W + 1)];
+            int32_t l10 = (int32_t)s_luma[(uint32_t)(idx - 1)];
+            int32_t l12 = (int32_t)s_luma[(uint32_t)(idx + 1)];
+            int32_t l20 = (int32_t)s_luma[(uint32_t)(idx + PP_W - 1)];
+            int32_t l21 = (int32_t)s_luma[(uint32_t)(idx + PP_W)];
+            int32_t l22 = (int32_t)s_luma[(uint32_t)(idx + PP_W + 1)];
+
+            int32_t gx = -l00 - (2 * l10) - l20 + l02 + (2 * l12) + l22;
+            int32_t gy = -l00 - (2 * l01) - l02 + l20 + (2 * l21) + l22;
+            int32_t mag = edgeai_abs_i32(gx) + edgeai_abs_i32(gy);
+            if (mag > 255) mag = 255;
+            s_edge[(uint32_t)j * PP_W + (uint32_t)i] = (uint8_t)mag;
+        }
+    }
+
+    /* Small blur to turn edges into glow. */
+    for (int32_t j = 0; j < PP_H; j++)
+    {
+        for (int32_t i = 0; i < PP_W; i++)
+        {
+            uint32_t sum = 0;
+            for (int32_t dj = -1; dj <= 1; dj++)
+            {
+                int32_t y = j + dj;
+                if ((uint32_t)y >= PP_H) continue;
+                for (int32_t di = -1; di <= 1; di++)
+                {
+                    int32_t x = i + di;
+                    if ((uint32_t)x >= PP_W) continue;
+                    sum += (uint32_t)s_edge[(uint32_t)y * PP_W + (uint32_t)x];
+                }
+            }
+            sum /= 9u;
+            if (sum > 255u) sum = 255u;
+            s_blur[(uint32_t)j * PP_W + (uint32_t)i] = (uint8_t)sum;
+        }
+    }
+
+    /* Precompute high-res -> low-res index maps. */
+    uint8_t mx[MAP_MAX];
+    uint8_t my[MAP_MAX];
+    for (int32_t x = 0; x < rw; x++) mx[x] = (uint8_t)((x * PP_W) / rw);
+    for (int32_t y = 0; y < rh; y++) my[y] = (uint8_t)((y * PP_H) / rh);
+
+    /* Time-varying shimmer multiplier. */
+    uint32_t tt = (frame >> 2) & 63u;
+    uint32_t tri = (tt < 32u) ? tt : (63u - tt); /* 0..31..0 */
+    uint32_t shimmer = 200u + tri;               /* 200..231 */
+
+    for (int32_t gy = by0; gy <= by1; gy++)
+    {
+        uint32_t ly = (uint32_t)(gy - y0);
+        uint8_t iy = my[gy - by0];
+        for (int32_t gx = bx0; gx <= bx1; gx++)
+        {
+            uint8_t ix = mx[gx - bx0];
+            uint32_t g = (uint32_t)s_blur[(uint32_t)iy * PP_W + (uint32_t)ix];
+            if (g <= 24u) continue;
+
+            uint32_t a = g - 24u;
+            a = (a * (shimmer + (uint32_t)glint)) >> 8;
+            if (a == 0u) continue;
+
+            uint32_t lx = (uint32_t)(gx - x0);
+            uint16_t c = dst[ly * w + lx];
+            uint32_t r5 = (c >> 11) & 31u;
+            uint32_t g6 = (c >> 5) & 63u;
+            uint32_t b5 = c & 31u;
+            uint32_t r8 = (r5 << 3) | (r5 >> 2);
+            uint32_t g8 = (g6 << 2) | (g6 >> 4);
+            uint32_t b8 = (b5 << 3) | (b5 >> 2);
+
+            r8 += a / 6u;
+            g8 += a / 5u;
+            b8 += a / 4u;
+            dst[ly * w + lx] = sw_pack_rgb565_u8(r8, g8, b8);
         }
     }
 }

@@ -75,3 +75,8 @@ static inline int32_t edgeai_ball_r_for_y(int32_t cy)
 /* Render tile limits (single-blit path). */
 #define EDGEAI_TILE_MAX_W 200
 #define EDGEAI_TILE_MAX_H 200
+
+/* Phase 1 post-process: CPU fixed-weight glow (placeholder for NPU). */
+#ifndef EDGEAI_ENABLE_POST_GLOW
+#define EDGEAI_ENABLE_POST_GLOW 1
+#endif

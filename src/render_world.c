@@ -180,6 +180,9 @@ bool render_world_draw(render_state_t *rs,
     sw_render_ball_shadow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
     uint32_t frame = rs->frame++;
     sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_draw, r_draw, frame, world->ball.glint);
+#if EDGEAI_ENABLE_POST_GLOW
+    sw_render_ball_glow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_draw, r_draw, frame, world->ball.glint);
+#endif
 		    render_world_draw_hud_tile(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, hud);
 
 	    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
@@ -215,6 +218,9 @@ bool render_world_draw(render_state_t *rs,
 
             sw_render_ball_shadow(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
             sw_render_silver_ball(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_draw, r_draw, frame, world->ball.glint);
+#if EDGEAI_ENABLE_POST_GLOW
+            sw_render_ball_glow(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_draw, r_draw, frame, world->ball.glint);
+#endif
             render_world_draw_hud_tile(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, hud);
 
 	            par_lcd_s035_blit_rect(ex0, ey0, ex1, ey1, s_tile);
