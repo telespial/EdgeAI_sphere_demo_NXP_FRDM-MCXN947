@@ -250,13 +250,13 @@ int main(void)
     BOARD_InitHardware();
     dwt_cycle_counter_init();
 
-    /* Bring up LCD early so we can always show something even if accel init fails. */
+    /* Bring up LCD early so the demo remains visibly alive even if accel init fails. */
     if (!par_lcd_s035_init())
     {
         /* Can't proceed without display in this demo. */
         for (;;) {}
     }
-    par_lcd_s035_fill(0x0000u); /* boot stays black (dune reveals as you roll) */
+    par_lcd_s035_fill(0x0000u); /* boot stays black (dune reveals with motion) */
     edgeai_draw_boot_title_sand_dune();
     SDK_DelayAtLeastUs(3000000u, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
     par_lcd_s035_fill(0x0000u);
@@ -336,7 +336,7 @@ int main(void)
     for (int i = 0; i < TRAIL_N; i++) { trail_x[i] = (int16_t)prev_x; trail_y[i] = (int16_t)prev_y; }
     uint32_t trail_head = 0;
 
-    /* Simple low-pass on accel; we map tilt directly to screen position. */
+    /* Simple low-pass on accel; map tilt directly to screen position. */
     int32_t ax_lp = 0;
     int32_t ay_lp = 0;
 
@@ -349,7 +349,7 @@ int main(void)
     uint32_t stats_accum_us = 0;
     uint32_t stats_frames = 0;
 
-    /* Maximum dirty-rect size. Even in raster mode we clamp work per frame. */
+    /* Maximum dirty-rect size. Even in raster mode, clamp work per frame. */
     enum { TILE_MAX_W = 200, TILE_MAX_H = 200 };
 #if EDGEAI_RENDER_SINGLE_BLIT
     /* Tile renderer (one LCD blit per frame to avoid tearing/flicker). */
@@ -430,7 +430,7 @@ int main(void)
         ax_lp += (ax - ax_lp) >> 2;
         ay_lp += (ay - ay_lp) >> 2;
 
-        /* Raw 12b is roughly ~512 counts / 1g at our current mode. Clamp to avoid crazy jumps. */
+        /* Raw 12b is roughly ~512 counts / 1g at the current mode. Clamp to avoid crazy jumps. */
         ax_lp = clamp_i32(ax_lp, -ACCEL_MAP_DENOM * 2, ACCEL_MAP_DENOM * 2);
         ay_lp = clamp_i32(ay_lp, -ACCEL_MAP_DENOM * 2, ACCEL_MAP_DENOM * 2);
 
@@ -518,8 +518,8 @@ int main(void)
 
         if (do_render)
         {
-            /* The trail is a ring buffer; one point is "removed" each frame when we overwrite
-             * the head slot. Include that removed point in the dirty rect so we clear it,
+            /* The trail is a ring buffer; one point is "removed" each frame when overwriting
+             * the head slot. Include that removed point in the dirty rect so it is cleared,
              * otherwise stale dots can remain on-screen.
              */
             int32_t removed_tx = trail_x[trail_head];

@@ -22,7 +22,7 @@ From repo root:
 
 Notes:
 - `tools/build_frdmmcxn947.sh` runs `tools/patch_mcuxsdk.sh` to keep upstream MCUX SDK builds reproducible.
-- If you use a non-default workspace, set `WS_DIR`:
+- For a non-default workspace, set `WS_DIR`:
 ```bash
 WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/build_frdmmcxn947.sh debug
 WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh

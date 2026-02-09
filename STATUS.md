@@ -5,8 +5,8 @@
 
 ## Golden Revision
 If anything regresses, return to:
-- Current golden tag: `GOLDEN_2026-02-09_v13_boot_title_3s`
-- Commit: `git rev-parse GOLDEN_2026-02-09_v13_boot_title_3s`
+- Current golden tag: `GOLDEN_2026-02-09_v14_docs_sanitize`
+- Commit: `git rev-parse GOLDEN_2026-02-09_v14_docs_sanitize`
 - Baseline golden (older): `milestone_raster_flicker_npu_v9` @ `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
 
 ## Last Run
@@ -17,7 +17,7 @@ If anything regresses, return to:
   - NPU stack integrated (TFLM + Neutron backend). Inference is compile-time gated (see `EDGEAI_ENABLE_NPU_INFERENCE` in `src/edgeai_sand_demo.c`).
   - Accel debug prints available on VCOM (`/dev/ttyACM0`)
   - Workspace patch applied for upstream TFLM kissfft tool build warning (see `tools/patch_mcuxsdk.sh`)
-  - If the ball is stuck, check UART for `EDGEAI: accel ok addr=0x18` (or `0x19`). If you see “not found”, the sensor is not being detected (reseat the clickboard and confirm it is configured for I2C mode).
+  - If the ball is stuck, check UART for `EDGEAI: accel ok addr=0x18` (or `0x19`). If “not found” appears, the sensor is not being detected (reseat the clickboard and confirm I2C mode).
 
 ## Background
 - Dune background is generated from `downloads/sanddune.jpg` into `src/dune_bg.h` (see `tools/gen_dune_bg.py`).

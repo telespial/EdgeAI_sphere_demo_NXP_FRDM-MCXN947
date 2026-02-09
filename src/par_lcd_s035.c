@@ -82,7 +82,7 @@ static void edgeai_delay_ms(uint32_t ms)
 
 static void lcd_wait_write_done(void)
 {
-    /* Guard against rare EDMA/callback stalls; we prefer a visible glitch over a hard hang. */
+    /* Guard against rare EDMA/callback stalls; prefer a visible glitch over a hard hang. */
     uint32_t spin = 0;
     while (!s_memWriteDone)
     {

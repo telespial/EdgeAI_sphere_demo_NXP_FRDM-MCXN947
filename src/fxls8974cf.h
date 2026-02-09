@@ -39,7 +39,7 @@ typedef struct {
 } fxls8974_sample_t;
 
 // I2C transfer hooks (platform-specific).
-// reg is 8-bit. For read/write we use the common "reg address then data" pattern.
+// reg is 8-bit. For read/write, use the common "reg address then data" pattern.
 typedef bool (*fxls8974_i2c_write_fn)(uint8_t addr7, uint8_t reg, const uint8_t *data, uint32_t len);
 typedef bool (*fxls8974_i2c_read_fn)(uint8_t addr7, uint8_t reg, uint8_t *data, uint32_t len);
 
@@ -53,4 +53,3 @@ bool fxls8974_read_whoami(const fxls8974_dev_t *dev, uint8_t *whoami);
 bool fxls8974_set_active(const fxls8974_dev_t *dev, bool active);
 bool fxls8974_set_fsr(const fxls8974_dev_t *dev, fxls8974_fsr_t fsr);
 bool fxls8974_read_sample_12b(const fxls8974_dev_t *dev, fxls8974_sample_t *out);
-

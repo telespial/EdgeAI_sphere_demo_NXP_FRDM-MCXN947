@@ -9,7 +9,7 @@ Outputs:
 
 Design goals:
   - Texture is low-res (LCD/2) so runtime background fill is just x>>1,y>>1 sampling.
-  - Heightmap is kept alongside the shaded texture so we can later evolve it (sand flow).
+  - Heightmap is kept alongside the shaded texture so it can evolve later (sand flow).
 """
 
 from __future__ import annotations
@@ -144,4 +144,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

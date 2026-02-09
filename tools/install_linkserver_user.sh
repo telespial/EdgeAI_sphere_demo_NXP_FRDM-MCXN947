@@ -6,7 +6,7 @@ set -euo pipefail
 # This downloads the official NXP LinkServer Linux x86_64 installer and extracts
 # the LinkServer binary into ~/.local/opt, then symlinks ~/.local/bin/LinkServer.
 #
-# By running this script you are accepting the NXP LinkServer license terms.
+# Running this script implies acceptance of the NXP LinkServer license terms.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

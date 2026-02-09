@@ -5,7 +5,7 @@ This file is an **append-only index** of known-good restore points.
 Source of truth:
 - Use the git tags listed below to restore code quickly.
 - Do not delete old entries. Prefer adding a new tag + a new entry.
-- Golden tags are **immutable**: never move an existing `GOLDEN_*` tag. If you need a new “current golden”, create a *new* `GOLDEN_*` tag instead.
+- Golden tags are **immutable**: never move an existing `GOLDEN_*` tag. If a new “current golden” is required, create a *new* `GOLDEN_*` tag instead.
 - For every golden tag, also create a `GOLDEN_LOCK_*_<SHA>` tag that bakes the target commit SHA into the tag name. Never move lock tags.
 
 ## How To Restore
@@ -75,7 +75,8 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Commit: `8140a4a0ef7a65c3dbb089c92f0b4b298e1c4e6c`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: initializes LCD early, prints boot banner early, retries accel WHO_AM_I for ~2s, and continues running if accel is missing (so the display doesn’t look “frozen”).
-- Notes: if ball is stuck, check UART for `EDGEAI: accel ok addr=0x18` (or 0x19). If you see “not found”, reseat the clickboard / verify I2C mode.
+- Notes: if ball is stuck, check UART for `EDGEAI: accel ok addr=0x18` (or 0x19). If “not found” appears, reseat the clickboard / verify I2C mode.
+- Correction: older text used second-person wording; meaning is unchanged.
 
 ### 2026-02-09 Boot Title “SAND DUNE” (3s Hold)
 - Tag: `milestone_boot_title_sand_dune_3s_v1`
@@ -92,6 +93,14 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: same as the boot-title-3s milestone; promoted as the “current golden” due to instability in later experimental goldens.
 - Notes: older `GOLDEN_*` tags remain valid restore points; do not overwrite them.
+
+### 2026-02-09 Golden (Current): Docs/Comments Sanitized (No Second-Person Wording)
+- Tag: `GOLDEN_2026-02-09_v14_docs_sanitize`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v14_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v14_docs_sanitize`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: same firmware behavior as v13; code/docs updated to remove conversational phrasing and direct references to a reader.
+- Notes: this tag is the preferred restore point for continued development.
 
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name

@@ -17,7 +17,7 @@ fi
 
 if [[ ! -d "$MCUX_EXAMPLES_DIR" ]]; then
   echo "MCUX examples dir not found at: $MCUX_EXAMPLES_DIR" >&2
-  echo "Set MCUX_EXAMPLES_DIR to your MCUX SDK examples directory (usually <west-workspace>/mcuxsdk/examples)." >&2
+  echo "Set MCUX_EXAMPLES_DIR to the MCUX SDK examples directory (usually <west-workspace>/mcuxsdk/examples)." >&2
   exit 1
 fi
 

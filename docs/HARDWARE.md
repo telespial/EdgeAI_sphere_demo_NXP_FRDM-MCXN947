@@ -7,7 +7,7 @@
 - Sensor on Click schematic: NXP FXLS8974CF (matches `datasheets/sensors/.../FXLS8974CF.pdf`)
 
 ## Interface Choice
-Assume I2C (per your instruction).
+Assume I2C.
 
 Accel 4 Click supports both I2C and SPI via **solder jumpers** on the Click board (not always a visible "plug-in" jumper).
 
@@ -29,7 +29,7 @@ Accel 4 Click schematic indicates two possible I2C addresses:
 - `0x18`
 - `0x19`
 
-We will probe both and validate by reading `WHO_AM_I` (FXLS8974CF: `0x86` at register `0x13`).
+Probe both and validate by reading `WHO_AM_I` (FXLS8974CF: `0x86` at register `0x13`).
 
 ## Local Datasheets
 - Click schematic: `datasheets/sensors/mikroe/accel-4-click/Accel_4_click_v100_Schematic.PDF`
@@ -38,4 +38,3 @@ We will probe both and validate by reading `WHO_AM_I` (FXLS8974CF: `0x86` at reg
 ## MRD
 - FXLS8974CF (Base): `mrdatasheets/devices/sensors/nxp_fxls8974cf_base.json`
 - Accel 4 Click (Base): `mrdatasheets/devices/modules/mikroe_accel_4_click_base.json`
-
