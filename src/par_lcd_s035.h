@@ -3,6 +3,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* LCD driver notes:
+ * - Intentionally simple single-buffer blit API used by this demo.
+ * - Future work (DMA, double-buffering, partial redraw scheduling) should live in this module.
+ */
+
 bool par_lcd_s035_init(void);
 void par_lcd_s035_fill(uint16_t rgb565);
 
