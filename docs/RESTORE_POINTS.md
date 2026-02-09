@@ -77,8 +77,8 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 
 ### 2026-02-09 Boot Title “SAND DUNE” (3s Hold)
 - Tag: `milestone_boot_title_sand_dune_3s_v1`
-- Lock tag: `LOCK_milestone_boot_title_sand_dune_3s_v1_ea6dad5` (includes SHA in name; do not move)
-- Commit: `ea6dad546aa93e7f3d4a5c81c1d38bf65a3cb0ac`
+- Lock tag: `LOCK_milestone_boot_title_sand_dune_3s_v1_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse milestone_boot_title_sand_dune_3s_v1`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: after LCD clears to black at boot, shows “SAND DUNE” centered for ~3 seconds, then clears back to black and proceeds into the normal accel-driven loop.
 - Notes: this is intentionally minimal; it does not change the dune “tile reveal” rendering behavior.
