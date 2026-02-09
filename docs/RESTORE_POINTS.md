@@ -103,6 +103,14 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: same firmware behavior as v13; code/docs updated to remove conversational phrasing and direct references to a reader.
 - Notes: this tag is the preferred restore point for continued development.
 
+### 2026-02-09 Golden: Text Style Guardrails
+- Tag: `GOLDEN_2026-02-09_v15_style_guardrails`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v15_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v15_style_guardrails`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: no firmware behavior change; adds enforced rules to prevent conversational phrasing in repo text.
+- Notes: lint is `./tools/lint_text_style.sh`; optional git hook installer is `./tools/install_git_hooks.sh`.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
