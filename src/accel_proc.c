@@ -35,6 +35,17 @@ void accel_proc_update(accel_proc_t *s, int32_t raw_x, int32_t raw_y, int32_t ra
     int32_t az = raw_z;
     accel_proc_apply_axis_map(&ax, &ay);
 
+    /* Filter intent (tilt path):
+     * - LP (`>>2`) smooths sensor noise while keeping tilts responsive.
+     * - Deadzone removes small jitter near level.
+     * - Soft-response blend (linear+cubic) reduces twitch near center while preserving strong tilt authority.
+     *
+     * Tuning symptoms:
+     * - Jitter at rest: increase deadzone or LP strength (larger shift).
+     * - Sluggish tilt: decrease LP strength (smaller shift) or deadzone.
+     * - Impacts not visible: adjust bang threshold/gain (high-pass path), not the tilt LP.
+     */
+
     /* Fast low-pass so small tilts respond quickly. */
     s->ax_lp += (ax - s->ax_lp) >> 2;
     s->ay_lp += (ay - s->ay_lp) >> 2;
