@@ -5,6 +5,8 @@ This file is an **append-only index** of known-good restore points.
 Source of truth:
 - Use the git tags listed below to restore code quickly.
 - Do not delete old entries. Prefer adding a new tag + a new entry.
+- Golden tags are **immutable**: never move an existing `GOLDEN_*` tag. If you need a new “current golden”, create a *new* `GOLDEN_*` tag instead.
+- For every golden tag, also create a `GOLDEN_LOCK_*_<SHA>` tag that bakes the target commit SHA into the tag name. Never move lock tags.
 
 ## How To Restore
 ```bash
@@ -82,6 +84,14 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: after LCD clears to black at boot, shows “SAND DUNE” centered for ~3 seconds, then clears back to black and proceeds into the normal accel-driven loop.
 - Notes: this is intentionally minimal; it does not change the dune “tile reveal” rendering behavior.
+
+### 2026-02-09 Golden (Current): Boot Title “SAND DUNE” (3s Hold)
+- Tag: `GOLDEN_2026-02-09_v13_boot_title_3s`
+- Lock tag: `GOLDEN_LOCK_2026-02-09_v13_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-09_v13_boot_title_3s`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: same as the boot-title-3s milestone; promoted as the “current golden” due to instability in later experimental goldens.
+- Notes: older `GOLDEN_*` tags remain valid restore points; do not overwrite them.
 
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
