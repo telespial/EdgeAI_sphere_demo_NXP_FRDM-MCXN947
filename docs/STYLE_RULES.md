@@ -1,5 +1,8 @@
 # Style Rules (Text, Docs, Comments)
 
+## Current Status Pointer
+For current build behavior and restore pointers, see `STATUS.md` and `docs/RESTORE_POINTS.md`.
+
 Goals:
 - Keep documentation and comments objective and repo-centric.
 - Avoid conversational phrasing that depends on a speaker/listener.
@@ -14,4 +17,3 @@ Rules:
 Enforcement:
 - Run `./tools/lint_text_style.sh` before committing changes that touch docs or comments.
 - Optionally install the git pre-commit hook via `./tools/install_git_hooks.sh`.
-

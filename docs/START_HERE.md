@@ -1,5 +1,15 @@
 # Start Here
 
+## Current Build Status (2026-02-10)
+- Golden restore tag: `GOLDEN_2026-02-10_v27_npu_glint`
+- Last verified flash artifact: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- Failsafe pointer: `docs/failsafe.md` (flash requires explicit filename confirmation)
+
+Behavior summary:
+- Tilt-controlled reflective silver ball over a dune background with trails + shadow.
+- Lift depth cue driven by vertical motion (HP of accel magnitude).
+- NPU inference (Neutron backend) runs periodically and modulates specular glint intensity.
+
 Read in order:
 1. `docs/HARDWARE.md`
 2. `docs/BUILD_FLASH.md`

@@ -2,8 +2,17 @@
 
 This file tracks the next features beyond the v23 ball polish baseline.
 
+## Current Status (2026-02-10)
+- Golden: `GOLDEN_2026-02-10_v27_npu_glint`
+- Last verified flash artifact: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- Implemented features:
+  - Tilt-controlled ball with trails + shadow and reflective shader (env reflection + sparkles).
+  - Lift depth cue driven by vertical motion (HP of accel magnitude).
+  - NPU inference (Neutron backend) enabled in the last verified build; output drives a single `glint` modulation signal.
+- Remaining scope in this file focuses on moving from "glint modulation" to a real post-process pipeline and gesture/surrogate features.
+
 Execution order:
-1. D1: Third dimension control (board raise/lower -> ball lift)
+1. D1: Third dimension control (board raise/lower -> ball lift) (implemented; keep for regression checks)
 2. N1: Phase 1 NPU post-process (low-res CNN + composite)
 3. N2: Gesture classifier (accel time-series)
 4. N3: Surrogate physics (model-assisted sand/water/material updates)
@@ -29,6 +38,11 @@ Acceptance criteria:
 - On hardware, raising/lowering the board (up/down motion) causes visible lift changes (ball separates from its shadow).
 - No stuck pixels or tearing regressions.
 - Build + flash remain repeatable; text style lint passes.
+
+Current implementation notes:
+- Lift uses a high-pass signal from accel magnitude `|a|` to avoid relying on board orientation.
+- `lift_target_q16` is smoothed into `ball.lift_q16` in `sim_step()`.
+- Rendering uses `cy_draw = cy_ground - lift_px` and adjusts ball radius and shadow alpha.
 
 ---
 

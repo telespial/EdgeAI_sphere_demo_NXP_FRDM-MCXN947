@@ -1,5 +1,11 @@
 # Hardware (FRDM-MCXN947 + MikroShield + Accel 4 Click)
 
+## Current Build Status (2026-02-10)
+Active demo:
+- PAR-LCD-S035 shows a dune background with a reflective silver ball, trails, shadow, HUD, and a lift depth cue.
+- Accel 4 Click (FXLS8974CF) provides tilt input for X/Y control and vertical-motion input for lift.
+- MCXN947 NPU (Neutron) can be enabled to generate a 0..255 `glint` modulation signal for specular highlights.
+
 ## Stack
 - Board: FRDM-MCXN947
 - Shield: MikroShield (routes mikroBUS to FRDM)

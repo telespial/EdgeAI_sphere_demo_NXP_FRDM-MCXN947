@@ -4,7 +4,8 @@ This repo is a hardware sandbox for FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click 
 
 Current demo (known-good):
 - Tilt-controlled "silver ball" with shadow and motion trails (480x320).
-- NPU is integrated via TFLM + Neutron backend and can modulate the ball's specular "glint".
+- Third-dimension lift depth cue derived from vertical motion (ball separates from shadow; size/shadow intensity vary).
+- NPU is integrated via TFLM + Neutron backend; inference output modulates the ball's specular glint and sparkle intensity.
 - Dune background derived from `downloads/sanddune.jpg` (rendered behind the ball).
 
 Current rendering notes:
@@ -12,6 +13,18 @@ Current rendering notes:
 - Background mode depends on the selected restore point:
   - render full-screen at boot, or
   - start black and “reveal” as the ball moves (dirty-rect tiles only).
+
+## Current Build Status (2026-02-10)
+Current restore pointers:
+- Golden tag: `GOLDEN_2026-02-10_v27_npu_glint` (see `docs/RESTORE_POINTS.md`)
+- Failsafe pointer: `docs/failsafe.md` (see `docs/BUILD_FLASH.md` for flashing)
+
+Functional summary:
+- Input: FXLS8974CF accel sample -> `accel_proc` LP/HP outputs
+- Simulation: fixed-step ball physics + damping + bounds; optional "bang" impulse
+- Depth cue: lift uses a high-pass signal from accel magnitude `|a|` and is smoothed into `ball.lift_q16`
+- Rendering: dune background + trails + shadow + reflective ball shader (environment reflection + moving sparkles)
+- NPU: when enabled, inference runs periodically and produces a single 0..255 `glint` value that drives specular intensity
 
 ## Known-Good Revision (Golden)
 If anything breaks, return to this exact revision:
@@ -55,6 +68,7 @@ Key folders:
 ## Run Validation Checklist
 - LCD: boot shows a centered `SAND DUNE` title for ~3 seconds, then transitions to the dune background + ball.
 - Motion: ball responds to tilt; trails follow the ball.
+- Lift: quick up/down motion produces visible lift (ball rises relative to shadow).
 - HUD: top-right text shows `C:###` (FPS) and NPU status.
   - `B:S` stub backend, `B:N` neutron backend
   - `N:1` backend init ok

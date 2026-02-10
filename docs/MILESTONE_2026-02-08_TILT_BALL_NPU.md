@@ -1,5 +1,16 @@
 # Milestone: 2026-02-08 Tilt Ball + NPU Glint (FRDM-MCXN947)
 
+## Current Status (2026-02-10)
+Current golden: `GOLDEN_2026-02-10_v27_npu_glint`
+
+Current demo behavior (superset of this milestone):
+- Dune background + reflective silver ball with trails and shadow.
+- Lift depth cue driven by vertical motion (HP of accel magnitude).
+- HUD shows FPS and NPU state.
+- NPU inference (Neutron backend) can be enabled to generate a single 0..255 `glint` modulation signal used by the ball shader.
+
+This milestone remains a historical snapshot of the initial end-to-end interactive moment and is retained for context.
+
 This document records the "known-good" interactive moment:
 - LCD: PAR-LCD-S035 (ST7796S over FlexIO 8080) @ `480x320`
 - Accel: Accel 4 Click (FXLS8974CF) on mikroBUS, assumed I2C @ 400 kHz

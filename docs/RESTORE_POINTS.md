@@ -16,6 +16,18 @@ Source of truth:
   - Updating the failsafe pointer or artifact requires an explicit project-owner directive in the current session.
 - Text in docs/comments/scripts must avoid conversational phrasing and direct reader references. See `docs/STYLE_RULES.md`.
 
+## Current Status (2026-02-10)
+- Current golden tag: `GOLDEN_2026-02-10_v27_npu_glint`
+- Current failsafe pointer: `docs/failsafe.md`
+- Last verified board flash matches: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- NPU build configuration for the last verified flash:
+  - `EDGEAI_ENABLE_NPU_INFERENCE=1`
+  - `EDGEAI_NPU_BACKEND=1` (Neutron)
+
+Notes:
+- `mcuxsdk_ws/build_*` directories are local artifacts and are not versioned by git.
+- Golden tags restore source + tooling state. Reproduce a specific firmware behavior by using the documented build flags and then building/flashing.
+
 ## How To Restore
 ```bash
 cd /path/to/EdgeAI_sphere_demo_NXP_FRDM-MCXN947
@@ -71,7 +83,7 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: draws the dune background across the entire screen at boot, then renders ball/trails on top.
 - Notes: this removes the “tile reveal” look.
 
-### 2026-02-08 Dune “Reveals As You Roll” (Tile-Only)
+### 2026-02-08 Dune Reveals With Rolling Motion (Tile-Only)
 - Tag: `milestone_dune_bg_tile_reveal_v1`
 - Commit: `fbbf554ec4af8053bf682277255fd7f5510039f9`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
@@ -211,7 +223,11 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Lock tag: `GOLDEN_LOCK_2026-02-10_v27_*` (includes SHA in name; do not move)
 - Commit: `git rev-parse GOLDEN_2026-02-10_v27_npu_glint`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
-- Behavior: tilt-controlled silver ball demo with dune background, HUD status, and NPU inference enabled to drive glint modulation.
+- Behavior:
+  - Tilt-controlled reflective silver ball with motion trails + shadow over a dune background.
+  - Lift depth cue from vertical motion (HP of accel magnitude): ball rises relative to its shadow; size/shadow intensity vary.
+  - HUD shows FPS and NPU status (`B:? N:? I:?`).
+  - NPU inference enabled (Neutron backend). Output is reduced to a single 0..255 `glint` value that modulates specular intensity and moving sparkles.
 - Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 - Example build (debug): `west build -d build_v27_npu_glint mcuxsdk/examples/demo_apps/edgeai_sand_demo --toolchain armgcc --config debug -b frdmmcxn947 -Dcore_id=cm33_core0 -DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 

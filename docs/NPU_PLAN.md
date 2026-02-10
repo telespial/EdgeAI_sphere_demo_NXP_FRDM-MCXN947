@@ -1,5 +1,14 @@
 # NPU Plan (MCXN947)
 
+## Current Status (2026-02-10)
+Current golden: `GOLDEN_2026-02-10_v27_npu_glint`
+
+Current NPU usage (glint modulation):
+- Backend: Neutron (`EDGEAI_NPU_BACKEND=1`)
+- Inference: enabled in the last verified build (`EDGEAI_ENABLE_NPU_INFERENCE=1`)
+- Inputs: synthetic features derived from ball motion (velocity magnitude) to validate plumbing
+- Output: a single 0..255 `glint` value that modulates specular intensity and sparkle probability in the ball shader
+
 ## Reality Check
 The NPU accelerates neural-network inference. It is not a generic compute accelerator.
 
@@ -27,4 +36,3 @@ Use accelerometer time-series classification (shake/tap/swirl) to trigger game e
 ## Integration Strategy
 - CPU core 0: deterministic sim + display driver
 - CPU core 1: NPU jobs / post-process
-
