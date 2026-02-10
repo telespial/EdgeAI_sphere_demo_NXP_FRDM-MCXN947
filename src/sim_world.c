@@ -10,7 +10,7 @@ void sim_world_init(sim_world_t *w, int32_t lcd_w, int32_t lcd_h)
     w->ball.y_q16 = (lcd_h / 2) << 16;
     w->ball.vx_q16 = 0;
     w->ball.vy_q16 = 0;
-    w->ball.lift_q16 = 0;
+    w->ball.z_scale_q16 = (1 << 16);
     w->ball.glint = 0;
 }
 
@@ -18,7 +18,10 @@ void sim_step(sim_world_t *w, const sim_input_t *in, const sim_params_t *p)
 {
     if (!w || !in || !p) return;
 
-    w->ball.lift_q16 += (in->lift_target_q16 - w->ball.lift_q16) >> EDGEAI_BALL_LIFT_SMOOTH_SHIFT;
+    w->ball.z_scale_q16 += (in->z_scale_target_q16 - w->ball.z_scale_q16) >> EDGEAI_BALL_Z_SCALE_SMOOTH_SHIFT;
+    w->ball.z_scale_q16 = edgeai_clamp_i32(w->ball.z_scale_q16,
+                                           EDGEAI_BALL_Z_SCALE_MIN_Q16,
+                                           EDGEAI_BALL_Z_SCALE_MAX_Q16);
 
     /* One-shot velocity impulse from an impact/bang (provided by the main loop). */
     w->ball.vx_q16 += in->bang_dvx_q16;
@@ -44,8 +47,10 @@ void sim_step(sim_world_t *w, const sim_input_t *in, const sim_params_t *p)
      * perspective-sized radius. Expand/shrink bounds per step so the collision radius
      * matches what is drawn.
      */
-    int32_t r_phys = edgeai_ball_r_for_y(cy);
-    int32_t shrink = EDGEAI_BALL_R_MAX - r_phys;
+    int32_t r_base = edgeai_ball_r_for_y(cy);
+    int32_t r_phys = (int32_t)(((int64_t)r_base * w->ball.z_scale_q16) >> 16);
+    if (r_phys < 1) r_phys = 1;
+    int32_t shrink = EDGEAI_BALL_R_MAX_DRAW - r_phys;
     int32_t minx = p->minx - shrink;
     int32_t maxx = p->maxx + shrink;
     int32_t miny = p->miny - shrink;

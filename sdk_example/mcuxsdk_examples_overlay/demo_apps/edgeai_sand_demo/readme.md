@@ -4,11 +4,11 @@ This MCUX SDK example wrapper builds the app sources from the repo root (`src/` 
 
 ## Current Build Status (2026-02-10)
 - Golden: `GOLDEN_2026-02-10_v27_npu_glint`
-- Last verified flash artifact: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- Last verified flash artifact: `mcuxsdk_ws/build_v28_z_scale_latch_npu/edgeai_sand_demo_cm33_core0.elf`
 
 Runtime behavior:
 - Dune background with a reflective silver ball (shadow + trails).
-- Lift depth cue driven by vertical motion (HP of accel magnitude).
+- Z scale latch driven by vertical motion (HP of accel magnitude): ball grows/shrinks and holds last scale.
 - HUD shows FPS and NPU status.
 - Optional NPU inference (Neutron backend) generates a 0..255 `glint` modulation value used by the ball shader.
 

@@ -8,7 +8,7 @@ typedef struct
     int32_t y_q16;
     int32_t vx_q16;
     int32_t vy_q16;
-    int32_t lift_q16;
+    int32_t z_scale_q16; /* Q16 multiplier, 1.0 == (1<<16) */
     uint8_t glint;
 } ball_state_t;
 
@@ -23,7 +23,7 @@ typedef struct
     int32_t ay_soft_q15;
     int32_t bang_dvx_q16;
     int32_t bang_dvy_q16;
-    int32_t lift_target_q16;
+    int32_t z_scale_target_q16;
 } sim_input_t;
 
 typedef struct

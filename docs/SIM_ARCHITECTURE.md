@@ -9,9 +9,9 @@ High-level loop (`src/edgeai_sand_demo.c`):
 3. Update `accel_proc` filters and compute:
    - `ax_soft_q15`, `ay_soft_q15` (tilt control)
    - bang score/pulse (impulse trigger)
-4. Compute lift target from a high-pass signal of accel magnitude `|a|`.
+4. Update a latched Z scale command from a high-pass signal of accel magnitude `|a|`.
 5. Run fixed-step physics (`sim_step`) at 120 Hz and throttle rendering to ~60 FPS.
-6. Draw a background-preserving dirty-rect tile: dune background + trails + shadow + reflective ball + HUD.
+6. Draw background-preserving dirty-rect tiles: dune background + trails + shadow + reflective ball + HUD.
 7. If inference is enabled, run an NPU step periodically and convert output to `ball.glint` (0..255).
 
 Key modules:
@@ -24,10 +24,10 @@ Key modules:
 - Neutron backend wrapper: `src/npu_backend_neutron.cpp`
 
 State representation:
-- `ball_state_t` uses Q16 for `x`, `y`, `vx`, `vy`, and `lift`:
+- `ball_state_t` uses Q16 for `x`, `y`, `vx`, `vy`, and `z_scale`:
   - `x_q16`, `y_q16` are pixel position in Q16.
   - `vx_q16`, `vy_q16` are pixels/second in Q16.
-  - `lift_q16` is a Q16 pixel offset used as a depth cue (rendered as `cy_draw = cy_ground - lift_px`).
+  - `z_scale_q16` is a Q16 multiplier in `[EDGEAI_BALL_Z_SCALE_MIN_Q16, EDGEAI_BALL_Z_SCALE_MAX_Q16]`.
 - `glint` is a single `uint8_t` (0..255) that modulates specular intensity and sparkle probability.
 
 Timing and stability:

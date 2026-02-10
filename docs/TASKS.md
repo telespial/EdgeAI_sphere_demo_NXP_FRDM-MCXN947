@@ -2,14 +2,14 @@
 
 ## Current Build Status (2026-02-10)
 - Golden: `GOLDEN_2026-02-10_v27_npu_glint`
-- Last verified flash artifact: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
-- Primary behavior: dune background + reflective silver ball with trails/shadow, lift depth cue, and NPU-driven `glint` modulation.
+- Last verified flash artifact: `mcuxsdk_ws/build_v28_z_scale_latch_npu/edgeai_sand_demo_cm33_core0.elf`
+- Primary behavior: dune background + reflective silver ball with trails/shadow, latched Z scale (grow/shrink), and NPU-driven `glint` modulation.
 
 ## Run Validation (Hardware)
 1. Build the golden profile (NPU inference enabled, Neutron backend) and flash.
 2. Confirm boot title, background render, and ball visibility.
 3. Confirm tilt controls X/Y and trails follow motion.
-4. Confirm lift responds to vertical motion (ball separates from shadow).
+4. Confirm Z scale responds to vertical motion (ball grows/shrinks and holds last scale).
 5. Confirm HUD indicates backend/init/inference state (`B:N N:1 I:1` for the golden profile).
 6. Optional: confirm VCOM logs (`EDGEAI:` banner + per-second stats) are present.
 

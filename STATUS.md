@@ -6,7 +6,7 @@
 ## Functional Summary
 - Controls:
   - Tilt (LP accel) drives X/Y acceleration.
-  - Vertical motion (HP of accel magnitude `|a|`) drives a lift depth cue.
+  - Vertical motion (HP of accel magnitude `|a|`) drives a latched Z scale (ball grows/shrinks and holds last scale).
   - "Bang" impulse (HP accel score) provides a one-shot velocity kick.
 - Rendering:
   - Dune background (generated from `downloads/sanddune.jpg` into `src/dune_bg.h`)
@@ -30,8 +30,8 @@ Failsafe firmware policy:
 
 ## Last Run
 - Date: 2026-02-10
-- Result: build + flash ok; LCD shows dune background + shaded "silver ball" with trails; NPU inference enabled and stable
-- Binary: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- Result: build + flash ok; LCD shows dune background + shaded "silver ball" with trails; Z scale grows/shrinks on up/down motion and remains latched on abrupt stop; NPU inference enabled and stable
+- Binary: `mcuxsdk_ws/build_v28_z_scale_latch_npu/edgeai_sand_demo_cm33_core0.elf`
 - Build configuration:
   - `EDGEAI_ENABLE_NPU_INFERENCE=1`
   - `EDGEAI_NPU_BACKEND=1` (Neutron)

@@ -12,7 +12,10 @@ typedef struct
     int16_t trail_y[EDGEAI_TRAIL_N];
     uint32_t trail_head;
     int32_t prev_x;
-    int32_t prev_y;
+    int32_t prev_y; /* previous cy_draw */
+    int32_t prev_cy_ground;
+    int32_t prev_r_draw;
+    int32_t prev_r_shadow;
     uint32_t frame;
 } render_state_t;
 

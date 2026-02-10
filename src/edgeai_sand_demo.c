@@ -276,10 +276,10 @@ int main(void)
     sim_p.sim_step_q16 = sim_step_q16;
     sim_p.a_px_s2 = 3780;
     sim_p.damp_q16 = 65000;
-    sim_p.minx = EDGEAI_BALL_R_MAX + 2;
-    sim_p.miny = EDGEAI_BALL_R_MAX + 2;
-    sim_p.maxx = (EDGEAI_LCD_W - 1) - (EDGEAI_BALL_R_MAX + 2);
-    sim_p.maxy = (EDGEAI_LCD_H - 1) - (EDGEAI_BALL_R_MAX + 2);
+    sim_p.minx = EDGEAI_BALL_R_MAX_DRAW + 2;
+    sim_p.miny = EDGEAI_BALL_R_MAX_DRAW + 2;
+    sim_p.maxx = (EDGEAI_LCD_W - 1) - (EDGEAI_BALL_R_MAX_DRAW + 2);
+    sim_p.maxy = (EDGEAI_LCD_H - 1) - (EDGEAI_BALL_R_MAX_DRAW + 2);
 
     /* If the loop runs very fast, dt can be too small to hit a sim sub-step every
      * iteration. Hold a pending bang impulse until the next sim_step().
@@ -288,6 +288,9 @@ int main(void)
     int32_t bang_pending_dvx_q16 = 0;
     int32_t bang_pending_dvy_q16 = 0;
     int32_t g_mag_lp = EDGEAI_ACCEL_MAP_DENOM;
+    int32_t z_scale_cmd_q16 = (1 << 16);
+    int32_t z_last_dir = 0; /* +1=up (grow), -1=down (shrink) */
+    uint32_t z_lockout_us = 0;
 
     for (;;)
     {
@@ -356,13 +359,14 @@ int main(void)
             bang_pending = true;
         }
 
-        int32_t lift_target_q16 = 0;
+        int32_t z_scale_target_q16 = z_scale_cmd_q16;
         int32_t g_mag = 0;
         int32_t g_hp = 0;
         if (accel_fail == 0)
         {
-            /* Lift uses a high-pass signal from |a| (accel magnitude), so it reacts to
-             * up/down motion regardless of orientation.
+            /* Z-scale uses a high-pass signal from |a| (accel magnitude), so it reacts to
+             * up/down motion regardless of orientation. The output is latched: it is not
+             * driven back toward 1.0x when motion stops.
              */
             int32_t ax = (int32_t)s.x;
             int32_t ay = (int32_t)s.y;
@@ -379,18 +383,54 @@ int main(void)
                 (uint64_t)((int64_t)az * (int64_t)az);
             uint32_t sumsq = (sumsq64 > 0xFFFFFFFFull) ? 0xFFFFFFFFu : (uint32_t)sumsq64;
             g_mag = (int32_t)edgeai_isqrt_u32(sumsq);
-            g_mag_lp += (g_mag - g_mag_lp) >> EDGEAI_BALL_LIFT_GMAG_LP_SHIFT;
+            g_mag_lp += (g_mag - g_mag_lp) >> EDGEAI_BALL_Z_GMAG_LP_SHIFT;
             g_hp = g_mag - g_mag_lp;
-            if (edgeai_abs_i32(g_hp) <= EDGEAI_BALL_LIFT_GMAG_DEADZONE) g_hp = 0;
+            if (edgeai_abs_i32(g_hp) <= EDGEAI_BALL_Z_GMAG_DEADZONE) g_hp = 0;
 
-            int32_t lift_px = 0;
-            if (EDGEAI_BALL_LIFT_GMAG_RANGE > 0)
+            if (z_lockout_us > dt_us) z_lockout_us -= dt_us;
+            else z_lockout_us = 0;
+
+            int32_t dir = 0;
+            if (g_hp < -EDGEAI_BALL_Z_LATCH_THR) dir = +1;     /* upward accel => grow */
+            else if (g_hp > EDGEAI_BALL_Z_LATCH_THR) dir = -1; /* downward accel => shrink */
+
+            if (dir != 0)
             {
-                /* Upward acceleration reduces |a| (lighter); map that to positive lift. */
-                lift_px = (-g_hp * EDGEAI_BALL_LIFT_MAX_PX) / EDGEAI_BALL_LIFT_GMAG_RANGE;
-                lift_px = edgeai_clamp_i32_sym(lift_px, EDGEAI_BALL_LIFT_MAX_PX);
+                if (z_lockout_us != 0u && dir != z_last_dir)
+                {
+                    /* Suppress the immediate opposite-sign "braking" impulse that occurs when
+                     * a single up/down motion stops abruptly.
+                     */
+                }
+                else
+                {
+                    z_last_dir = dir;
+                    z_lockout_us = EDGEAI_BALL_Z_LATCH_LOCKOUT_US;
+
+                    int32_t mag = edgeai_abs_i32(g_hp) - EDGEAI_BALL_Z_LATCH_THR;
+                    if (mag < 0) mag = 0;
+                    if (EDGEAI_BALL_Z_GMAG_RANGE > 0)
+                    {
+                        if (mag > EDGEAI_BALL_Z_GMAG_RANGE) mag = EDGEAI_BALL_Z_GMAG_RANGE;
+                        int32_t delta_q16 = (int32_t)(((int64_t)EDGEAI_BALL_Z_LATCH_RATE_Q16_PER_S * dt_q16) >> 16);
+                        delta_q16 = (int32_t)(((int64_t)delta_q16 * mag) / EDGEAI_BALL_Z_GMAG_RANGE);
+                        if (delta_q16 == 0) delta_q16 = 1;
+                        z_scale_cmd_q16 += dir * delta_q16;
+                    }
+                    else
+                    {
+                        int32_t delta_q16 = (int32_t)(((int64_t)EDGEAI_BALL_Z_LATCH_RATE_Q16_PER_S * dt_q16) >> 16);
+                        if (delta_q16 == 0) delta_q16 = 1;
+                        z_scale_cmd_q16 += dir * delta_q16;
+                    }
+
+                    z_scale_cmd_q16 = edgeai_clamp_i32(z_scale_cmd_q16,
+                                                       EDGEAI_BALL_Z_SCALE_MIN_Q16,
+                                                       EDGEAI_BALL_Z_SCALE_MAX_Q16);
+                }
             }
-            lift_target_q16 = lift_px << 16;
+
+            z_scale_target_q16 = z_scale_cmd_q16;
         }
 
         sim_input_t sin_base;
@@ -398,7 +438,7 @@ int main(void)
         sin_base.ay_soft_q15 = aout.ay_soft_q15;
         sin_base.bang_dvx_q16 = 0;
         sin_base.bang_dvy_q16 = 0;
-        sin_base.lift_target_q16 = lift_target_q16;
+        sin_base.z_scale_target_q16 = z_scale_target_q16;
 
         uint32_t t_sim0 = DWT->CYCCNT;
         int iter = 0;
@@ -467,8 +507,9 @@ int main(void)
             stats_frames = 0;
             int32_t cx = world.ball.x_q16 >> 16;
             int32_t cy = world.ball.y_q16 >> 16;
-            int32_t lift_px = world.ball.lift_q16 >> 16;
-            PRINTF("EDGEAI: fps=%u raw=(%d,%d,%d) lp=(%d,%d,%d) hp=(%d,%d,%d) gmag=%d ghp=%d bang=%d pos=(%d,%d) lift=%d v=(%d,%d) glint=%u npu=%u\r\n",
+            int32_t z_scale_x100 = (int32_t)(((int64_t)world.ball.z_scale_q16 * 100) >> 16);
+            int32_t lift_px = edgeai_ball_lift_px_for_scale_q16(world.ball.z_scale_q16);
+            PRINTF("EDGEAI: fps=%u raw=(%d,%d,%d) lp=(%d,%d,%d) hp=(%d,%d,%d) gmag=%d ghp=%d bang=%d pos=(%d,%d) z=%d%% lift=%d v=(%d,%d) glint=%u npu=%u\r\n",
                    (unsigned)fps,
                    (int)s.x, (int)s.y, (int)s.z,
                    (int)aout.ax_lp, (int)aout.ay_lp, (int)aout.az_lp,
@@ -477,6 +518,7 @@ int main(void)
                    (int)g_hp,
                    (int)aout.bang_score,
                    (int)cx, (int)cy,
+                   (int)z_scale_x100,
                    (int)lift_px,
                    (int)(world.ball.vx_q16 >> 16), (int)(world.ball.vy_q16 >> 16),
                    (unsigned)world.ball.glint,

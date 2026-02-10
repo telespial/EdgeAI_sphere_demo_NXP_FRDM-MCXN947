@@ -4,7 +4,7 @@ This repo is a hardware sandbox for FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click 
 
 Current demo (known-good):
 - Tilt-controlled "silver ball" with shadow and motion trails (480x320).
-- Third-dimension lift depth cue derived from vertical motion (ball separates from shadow; size/shadow intensity vary).
+- Third-dimension Z control derived from vertical motion (ball scale grows/shrinks and latches; a small lift offset is derived from scale for depth cue).
 - NPU is integrated via TFLM + Neutron backend; inference output modulates the ball's specular glint and sparkle intensity.
 - Dune background derived from `downloads/sanddune.jpg` (rendered behind the ball).
 
@@ -18,11 +18,13 @@ Current rendering notes:
 Current restore pointers:
 - Golden tag: `GOLDEN_2026-02-10_v27_npu_glint` (see `docs/RESTORE_POINTS.md`)
 - Failsafe pointer: `docs/failsafe.md` (see `docs/BUILD_FLASH.md` for flashing)
+Last verified flash artifact:
+- `mcuxsdk_ws/build_v28_z_scale_latch_npu/edgeai_sand_demo_cm33_core0.elf`
 
 Functional summary:
 - Input: FXLS8974CF accel sample -> `accel_proc` LP/HP outputs
 - Simulation: fixed-step ball physics + damping + bounds; optional "bang" impulse
-- Depth cue: lift uses a high-pass signal from accel magnitude `|a|` and is smoothed into `ball.lift_q16`
+- Z control: accel magnitude `|a|` high-pass drives a latched Z scale command; simulation smooths into `ball.z_scale_q16` (Q16 multiplier)
 - Rendering: dune background + trails + shadow + reflective ball shader (environment reflection + moving sparkles)
 - NPU: when enabled, inference runs periodically and produces a single 0..255 `glint` value that drives specular intensity
 
@@ -68,7 +70,7 @@ Key folders:
 ## Run Validation Checklist
 - LCD: boot shows a centered `SAND DUNE` title for ~3 seconds, then transitions to the dune background + ball.
 - Motion: ball responds to tilt; trails follow the ball.
-- Lift: quick up/down motion produces visible lift (ball rises relative to shadow).
+- Z: quick up/down motion grows/shrinks the ball; scale persists when motion stops abruptly.
 - HUD: top-right text shows `C:###` (FPS) and NPU status.
   - `B:S` stub backend, `B:N` neutron backend
   - `N:1` backend init ok

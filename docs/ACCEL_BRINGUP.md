@@ -3,7 +3,7 @@
 ## Current Build Status (2026-02-10)
 The accelerometer signal is used in three paths:
 - Tilt control: low-pass filtered X/Y (mapped to screen axes) drives ball acceleration.
-- Lift depth cue: high-pass of accel magnitude `|a|` produces a lift target that separates the ball from its shadow.
+- Z scale latch: high-pass of accel magnitude `|a|` drives a persistent scale command (ball grows/shrinks and holds last scale).
 - Bang impulse: a short high-pass event score can inject a one-shot velocity impulse.
 
 ## Wiring Summary
