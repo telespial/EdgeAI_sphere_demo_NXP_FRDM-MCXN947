@@ -21,7 +21,9 @@ void par_lcd_s035_draw_filled_circle(int32_t cx, int32_t cy, int32_t r, uint16_t
 void par_lcd_s035_fill_rect(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t rgb565);
 
 /* Draw a shaded "silver" ball. The background should already be set (e.g. black). */
-void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t frame, uint8_t glint);
+void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r,
+                                   uint32_t phase, uint8_t glint,
+                                   int32_t spin_sin_q14, int32_t spin_cos_q14);
 
 /* Draw a soft ambient-occlusion style shadow below the ball (visible even on black). */
 void par_lcd_s035_draw_ball_shadow(int32_t cx, int32_t cy, int32_t r, uint32_t alpha_max);

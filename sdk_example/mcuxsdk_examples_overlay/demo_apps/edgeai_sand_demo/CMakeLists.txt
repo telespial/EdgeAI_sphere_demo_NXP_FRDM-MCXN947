@@ -38,6 +38,12 @@ mcux_add_include(
     INCLUDES src
 )
 
+# Default linker script stack is 0x800 (2 KB), which is enough for the render loop
+# but not for TFLM/Neutron init/invoke when NPU inference is enabled (STKOF/HardFault).
+if(DEFINED EDGEAI_ENABLE_NPU_INFERENCE AND EDGEAI_ENABLE_NPU_INFERENCE)
+  mcux_add_linker_symbol(SYMBOLS "__stack_size__=0x2000")
+endif()
+
 include(${SdkRootDirPath}/${board_root}/${board}/demo_apps/edgeai_sand_demo/reconfig.cmake OPTIONAL)
 
 mcux_convert_binary(BINARY ${APPLICATION_BINARY_DIR}/${MCUX_SDK_PROJECT_NAME}.bin)

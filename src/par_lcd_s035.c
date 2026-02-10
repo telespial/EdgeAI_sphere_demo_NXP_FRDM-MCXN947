@@ -287,6 +287,22 @@ static inline uint32_t isqrt_u32(uint32_t x)
     return res;
 }
 
+static inline uint32_t xorshift32(uint32_t x)
+{
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    return x;
+}
+
+static inline uint8_t noise_u8(uint32_t x, uint32_t y, uint32_t seed)
+{
+    /* Cheap 2D hash -> 8-bit noise. */
+    uint32_t n = (x * 0x9E3779B1u) ^ (y * 0x85EBCA77u) ^ seed;
+    n = xorshift32(n);
+    return (uint8_t)(n >> 24);
+}
+
 void par_lcd_s035_draw_ball_shadow(int32_t cx, int32_t cy, int32_t r, uint32_t alpha_max)
 {
     /* Not a physical shadow on black; it's a soft AO spot to add depth. */
@@ -338,9 +354,10 @@ void par_lcd_s035_draw_ball_shadow(int32_t cx, int32_t cy, int32_t r, uint32_t a
     }
 }
 
-void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t frame, uint8_t glint)
+void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r,
+                                   uint32_t phase, uint8_t glint,
+                                   int32_t spin_sin_q14, int32_t spin_cos_q14)
 {
-    (void)frame;
     if (r <= 0) return;
 
     /* Ray-traced sphere shading for a single object (analytic ray/sphere). */
@@ -357,6 +374,9 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
     const int32_t Lz = 11469;  /*  0.7 */
 
     const uint32_t r2 = (uint32_t)(r * r);
+    const uint32_t seed = (phase * 0xA511E9B3u) ^ ((uint32_t)glint * 0x63D83595u);
+    const uint32_t off_u = (phase >> 3) & 255u;
+    const uint32_t off_v = (phase >> 4) & 255u;
 
     for (int32_t y = y0; y <= y1; y++)
     {
@@ -417,27 +437,81 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
             int32_t f4 = (f2 * f2) >> 14;
             int32_t f5 = (f4 * inv) >> 14;
 
-            /* Silver base in 8-bit. */
-            uint32_t br = 180, bg = 185, bb = 195;
+            /* Base "silver" tint (kept slightly dark; reflections add punch). */
+            uint32_t br = 150, bg = 155, bb = 165;
 
             /* Lighting combine (all Q14), integer-only.
              * glint scales specular to make the ball feel more "alive".
              */
-            const int32_t amb = 2949;          /* 0.18 * 16384 */
-            const int32_t diff_k = 11469;      /* 0.70 * 16384 */
-            int32_t spec_k = 20480;            /* 1.25 * 16384 */
-            const int32_t fre_k  = 5734;       /* 0.35 * 16384 */
+            const int32_t amb = 1966;          /* 0.12 * 16384 */
+            const int32_t diff_k = 9011;       /* 0.55 * 16384 */
+            int32_t spec_k = 16384;            /* 1.00 * 16384 */
+            const int32_t fre_k  = 4096;       /* 0.25 * 16384 */
             spec_k += (int32_t)((uint32_t)glint * 8192u / 255u); /* +0..0.5 */
             int32_t diff = (ndl * diff_k) >> 14;
             int32_t spec = (s16 * spec_k) >> 14;
             int32_t fre  = (f5  * fre_k) >> 14;
             int32_t I = amb + diff;
-            if (I > (3 << 14)) I = (3 << 14);
+            if (I > (2 << 14)) I = (2 << 14);
 
             /* Apply diffuse/ambient to base. */
             uint32_t r8 = (br * (uint32_t)I) >> 14;
             uint32_t g8 = (bg * (uint32_t)I) >> 14;
             uint32_t b8 = (bb * (uint32_t)I) >> 14;
+
+            /* Environment reflection (very cheap "sky + ground + sun" model), rotated by spin. */
+            int32_t Rx = (2 * ((nz * nx) >> 14));
+            int32_t Ry = (2 * ((nz * ny) >> 14));
+            int32_t Rz = (((2 * ((nz * nz) >> 14)) - (1 << 14)));
+            int32_t Rxr = (Rx * spin_cos_q14 - Ry * spin_sin_q14) >> 14;
+            int32_t Ryr = (Rx * spin_sin_q14 + Ry * spin_cos_q14) >> 14;
+
+            int32_t t = (Rz + (1 << 14)) >> 1; /* 0..16384 */
+            if (t < 0) t = 0;
+            if (t > (1 << 14)) t = (1 << 14);
+
+            const uint32_t sky_r = 90,  sky_g = 135, sky_b = 180;
+            const uint32_t grd_r = 160, grd_g = 120, grd_b = 80;
+            uint32_t env_r = (grd_r * (uint32_t)((1 << 14) - t) + sky_r * (uint32_t)t) >> 14;
+            uint32_t env_g = (grd_g * (uint32_t)((1 << 14) - t) + sky_g * (uint32_t)t) >> 14;
+            uint32_t env_b = (grd_b * (uint32_t)((1 << 14) - t) + sky_b * (uint32_t)t) >> 14;
+
+            /* Add a small sun spot in the sky. */
+            int32_t sun_dot = (Rxr * Lx + Ryr * Ly + Rz * Lz) >> 14;
+            if (sun_dot < 0) sun_dot = 0;
+            int32_t sd2 = (sun_dot * sun_dot) >> 14;
+            int32_t sd4 = (sd2 * sd2) >> 14;
+            int32_t sd8 = (sd4 * sd4) >> 14;
+            int32_t sd16 = (sd8 * sd8) >> 14;
+            uint32_t sun_k = (uint32_t)((sd16 * 220) >> 14); /* 0..220 */
+            env_r += sun_k;
+            env_g += (sun_k * 210u) / 220u;
+            env_b += (sun_k * 170u) / 220u;
+
+            /* Reflectivity (Fresnel-ish). */
+            int32_t refl_k = 8192 + ((f5 * 8192) >> 14); /* 0.5..1.0 */
+            r8 += (env_r * (uint32_t)refl_k) >> 14;
+            g8 += (env_g * (uint32_t)refl_k) >> 14;
+            b8 += (env_b * (uint32_t)refl_k) >> 14;
+
+            /* Moving sparkles in the specular highlight region (replaces the static 45-degree streak). */
+            if (glint > 12u && s16 > 2500)
+            {
+                int32_t ux = (nx * spin_cos_q14 - ny * spin_sin_q14) >> 14;
+                int32_t uy = (nx * spin_sin_q14 + ny * spin_cos_q14) >> 14;
+                uint32_t iu = ((uint32_t)(ux + (1 << 14)) >> 7) + off_u;
+                uint32_t iv = ((uint32_t)(uy + (1 << 14)) >> 7) + off_v;
+                uint8_t n = noise_u8(iu & 255u, iv & 255u, seed);
+                int32_t thresh = 252 - ((int32_t)glint >> 4); /* 252..237 */
+                if ((int32_t)n > thresh)
+                {
+                    int32_t d = (int32_t)n - thresh;
+                    int32_t sparkle_q14 = d << 10;
+                    if (sparkle_q14 > (1 << 14)) sparkle_q14 = (1 << 14);
+                    sparkle_q14 = (sparkle_q14 * s16) >> 14;
+                    spec += sparkle_q14;
+                }
+            }
 
             /* Add specular (white) and fresnel (cool tint). */
             r8 += (uint32_t)((255u * (uint32_t)spec) >> 14);
@@ -447,18 +521,6 @@ void par_lcd_s035_draw_silver_ball(int32_t cx, int32_t cy, int32_t r, uint32_t f
             r8 += (uint32_t)((40u * (uint32_t)fre) >> 14);
             g8 += (uint32_t)((60u * (uint32_t)fre) >> 14);
             b8 += (uint32_t)((90u * (uint32_t)fre) >> 14);
-
-            /* Optional "streak" highlight across the ball when glint is strong. */
-            if (glint > 160u)
-            {
-                int32_t band = (dx + dy + (r / 3));
-                if (band > -2 && band < 2)
-                {
-                    r8 += 40u;
-                    g8 += 50u;
-                    b8 += 60u;
-                }
-            }
 
             line[(uint32_t)(x - x0)] = pack_rgb565_u8(r8, g8, b8);
         }

@@ -10,6 +10,49 @@
 #define EDGEAI_RENDER_SINGLE_BLIT 1
 #endif
 
+/* Sine in Q14 for angles 0..90 degrees in 64 steps. */
+static const int16_t s_sin_q14_quarter[65] = {
+        0,   402,   804,  1205,  1606,  2006,  2404,  2801,
+     3196,  3590,  3981,  4370,  4756,  5139,  5520,  5897,
+     6270,  6639,  7005,  7366,  7723,  8076,  8423,  8765,
+     9102,  9434,  9760, 10080, 10394, 10702, 11003, 11297,
+    11585, 11866, 12140, 12406, 12665, 12916, 13160, 13395,
+    13623, 13842, 14053, 14256, 14449, 14635, 14811, 14978,
+    15137, 15286, 15426, 15557, 15679, 15791, 15893, 15986,
+    16069, 16143, 16207, 16261, 16305, 16340, 16364, 16379,
+    16384,
+};
+
+static inline void render_sincos_q14(uint8_t a, int32_t *sin_q14, int32_t *cos_q14)
+{
+    /* a: 0..255 maps to 0..2*pi. */
+    uint32_t quad = (uint32_t)(a >> 6); /* 0..3 */
+    uint32_t off = (uint32_t)(a & 63u);
+    int32_t s = 0;
+    int32_t c = 0;
+    switch (quad)
+    {
+        case 0: /* 0..90 */
+            s = s_sin_q14_quarter[off];
+            c = s_sin_q14_quarter[64u - off];
+            break;
+        case 1: /* 90..180 */
+            s = s_sin_q14_quarter[64u - off];
+            c = -s_sin_q14_quarter[off];
+            break;
+        case 2: /* 180..270 */
+            s = -s_sin_q14_quarter[off];
+            c = -s_sin_q14_quarter[64u - off];
+            break;
+        default: /* 270..360 */
+            s = -s_sin_q14_quarter[64u - off];
+            c = s_sin_q14_quarter[off];
+            break;
+    }
+    *sin_q14 = s;
+    *cos_q14 = c;
+}
+
 #if EDGEAI_RENDER_SINGLE_BLIT
 /* Single tile buffer shared by all renderer paths. */
 static uint16_t s_tile[EDGEAI_TILE_MAX_W * EDGEAI_TILE_MAX_H];
@@ -92,6 +135,24 @@ bool render_world_draw(render_state_t *rs,
     int32_t r_ground = edgeai_ball_r_for_y(cy_ground);
     int32_t r_draw = r_ground + (lift_px / 4);
     r_draw = edgeai_clamp_i32(r_draw, EDGEAI_BALL_R_MIN, EDGEAI_BALL_R_MAX);
+
+    /* Approximate spin: advance a phase accumulator proportional to speed/r.
+     * This makes environment reflections and sparkles "roll" as the ball moves.
+     */
+    int32_t vx = world->ball.vx_q16 >> 16; /* px/s */
+    int32_t vy = world->ball.vy_q16 >> 16; /* px/s */
+    int32_t speed = edgeai_abs_i32(vx) + edgeai_abs_i32(vy);
+    uint32_t phase_inc = 0;
+    if (speed > 0)
+    {
+        int32_t r_for_spin = (r_draw < 8) ? 8 : r_draw;
+        phase_inc = 1u + (uint32_t)(speed / r_for_spin);
+    }
+    rs->frame += phase_inc;
+    uint32_t phase = rs->frame;
+    int32_t spin_sin_q14 = 0;
+    int32_t spin_cos_q14 = (1 << 14);
+    render_sincos_q14((uint8_t)phase, &spin_sin_q14, &spin_cos_q14);
 
     int32_t shadow_alpha = 60;
     if (EDGEAI_BALL_LIFT_MAX_PX > 0)
@@ -178,11 +239,11 @@ bool render_world_draw(render_state_t *rs,
     }
 
     sw_render_ball_shadow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
-    uint32_t frame = rs->frame++;
-    sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_draw, r_draw, frame, world->ball.glint);
+    sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0,
+                          cx, cy_draw, r_draw, phase, world->ball.glint, spin_sin_q14, spin_cos_q14);
 		    render_world_draw_hud_tile(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, hud);
 
-	    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
+		    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
 
 	    /* If the main dirty-rect is clamped, the removed trail point can fall outside the
 	     * final blit region and remain "stuck" on the LCD. Issue a tiny cleanup blit around
@@ -214,10 +275,11 @@ bool render_world_draw(render_state_t *rs,
             }
 
             sw_render_ball_shadow(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
-            sw_render_silver_ball(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_draw, r_draw, frame, world->ball.glint);
+            sw_render_silver_ball(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0,
+                                  cx, cy_draw, r_draw, phase, world->ball.glint, spin_sin_q14, spin_cos_q14);
             render_world_draw_hud_tile(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, hud);
 
-	            par_lcd_s035_blit_rect(ex0, ey0, ex1, ey1, s_tile);
+		            par_lcd_s035_blit_rect(ex0, ey0, ex1, ey1, s_tile);
 	        }
 	    }
 #else
@@ -235,7 +297,7 @@ bool render_world_draw(render_state_t *rs,
     }
 
 	    par_lcd_s035_draw_ball_shadow(cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
-	    par_lcd_s035_draw_silver_ball(cx, cy_draw, r_draw, rs->frame++, world->ball.glint);
+	    par_lcd_s035_draw_silver_ball(cx, cy_draw, r_draw, phase, world->ball.glint, spin_sin_q14, spin_cos_q14);
 
     char d3[4];
     edgeai_u32_to_dec3(d3, hud->fps_last);

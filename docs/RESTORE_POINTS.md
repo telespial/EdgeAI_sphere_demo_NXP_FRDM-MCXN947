@@ -191,6 +191,14 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Behavior: same as v24, with ~10% reduced max tilt acceleration to keep rendering stable at high roll speeds.
 - Notes: preferred restore point for starting NPU post-process work.
 
+### 2026-02-10 Golden (Current): Ball Reflections + Moving Sparkles (Spin Shimmer)
+- Tag: `GOLDEN_2026-02-10_v26_ball_reflections_sparkles`
+- Lock tag: `GOLDEN_LOCK_2026-02-10_v26_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-10_v26_ball_reflections_sparkles`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: replaces the static 45-degree streak highlight with a rolling environment reflection (sky/ground + sun spot) and moving sparkles driven by an approximate spin phase accumulator. NPU path remains optional and gated.
+- Notes: NPU-enabled builds require a larger stack (`__stack_size__=0x2000`) to avoid STKOF HardFault during TFLM/Neutron init/invoke.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
