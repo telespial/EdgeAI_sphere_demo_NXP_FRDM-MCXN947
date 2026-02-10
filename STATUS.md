@@ -18,7 +18,7 @@ Failsafe firmware policy:
 ## Last Run
 - Date: 2026-02-10
 - Result: build + flash ok; LCD shows dune background + shaded "silver ball" with trails; NPU inference enabled and stable
-- Binary: `mcuxsdk_ws/build_v26_npu_glint/edgeai_sand_demo_cm33_core0.elf`
+- Binary: `failsafe/FAILSAFE_2026-02-10_v26_npu_glint_7a658544.elf`
 - Notes:
   - NPU stack integrated (TFLM + Neutron backend). NPU stepping is compile-time gated (see `EDGEAI_ENABLE_NPU_INFERENCE` in `src/npu_api.h`).
   - Accel debug prints available on VCOM (`/dev/ttyACM0`)

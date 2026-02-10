@@ -25,6 +25,9 @@ Golden tag policy:
 Failsafe firmware policy:
 - A file-based failsafe firmware artifact exists for last-resort board recovery. See `docs/failsafe.md`.
 
+Failsafe (pinned final firmware for this iteration):
+- `failsafe/FAILSAFE_2026-02-10_v26_npu_glint_7a658544.elf`
+
 Checkout + rebuild + flash:
 ```bash
 git checkout GOLDEN_2026-02-10_v27_npu_glint
