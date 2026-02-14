@@ -24,10 +24,15 @@ static const uint8_t GLYPH_B[7] = {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E};
 static const uint8_t GLYPH_C[7] = {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E};
 static const uint8_t GLYPH_D[7] = {0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E};
 static const uint8_t GLYPH_E[7] = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F};
+static const uint8_t GLYPH_H[7] = {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11};
 static const uint8_t GLYPH_I[7] = {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E};
+static const uint8_t GLYPH_K[7] = {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11};
 static const uint8_t GLYPH_N[7] = {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11};
+static const uint8_t GLYPH_R[7] = {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11};
 static const uint8_t GLYPH_S[7] = {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E};
 static const uint8_t GLYPH_U[7] = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E};
+static const uint8_t GLYPH_LPAREN[7] = {0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02};
+static const uint8_t GLYPH_RPAREN[7] = {0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08};
 
 static const uint8_t *edgeai_glyph5x7(char c)
 {
@@ -49,12 +54,18 @@ static const uint8_t *edgeai_glyph5x7(char c)
         case 'C': return GLYPH_C;
         case 'D': return GLYPH_D;
         case 'E': return GLYPH_E;
+        case 'H': return GLYPH_H;
         case 'I': return GLYPH_I;
+        case 'K': return GLYPH_K;
         case 'N': return GLYPH_N;
+        case 'R': return GLYPH_R;
         case 'S': return GLYPH_S;
         case 'U': return GLYPH_U;
+        case 'c': return GLYPH_C;
 
         case ':': return GLYPH_COLON;
+        case '(': return GLYPH_LPAREN;
+        case ')': return GLYPH_RPAREN;
         case ' ': return GLYPH_SPACE;
         default: return GLYPH_SPACE;
     }
@@ -100,4 +111,3 @@ void edgeai_text5x7_draw_scaled(int32_t x, int32_t y, int32_t scale, const char 
         s++;
     }
 }
-

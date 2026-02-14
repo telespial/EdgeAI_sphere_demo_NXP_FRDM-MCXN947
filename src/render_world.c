@@ -64,6 +64,10 @@ enum
     EDGEAI_HUD_H = 9,
     EDGEAI_HUD_X0 = 2,
     EDGEAI_HUD_Y0 = 2,
+    EDGEAI_SIG_W = 130,
+    EDGEAI_SIG_H = 9,
+    EDGEAI_SIG_X0 = EDGEAI_LCD_W - EDGEAI_SIG_W - 2,
+    EDGEAI_SIG_Y0 = 2,
 };
 
 void render_world_init(render_state_t *rs, int32_t cx, int32_t cy)
@@ -137,6 +141,19 @@ static void render_world_draw_hud_overlay(const render_hud_t *hud)
 
     sw_render_dune_bg(s_tile, EDGEAI_HUD_W, EDGEAI_HUD_H, x0, y0);
     render_world_draw_hud_tile(s_tile, EDGEAI_HUD_W, EDGEAI_HUD_H, x0, y0, hud);
+    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
+}
+
+static void render_world_draw_signature_overlay(void)
+{
+    static const char sig[] = "(c)RICHARD HABERKERN";
+    const int32_t x0 = EDGEAI_SIG_X0;
+    const int32_t y0 = EDGEAI_SIG_Y0;
+    const int32_t x1 = x0 + EDGEAI_SIG_W - 1;
+    const int32_t y1 = y0 + EDGEAI_SIG_H - 1;
+
+    sw_render_dune_bg(s_tile, EDGEAI_SIG_W, EDGEAI_SIG_H, x0, y0);
+    sw_render_text5x7(s_tile, EDGEAI_SIG_W, EDGEAI_SIG_H, x0, y0, x0, y0, sig, 0x0000u);
     par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
 }
 #endif
@@ -293,6 +310,7 @@ bool render_world_draw(render_state_t *rs,
 	    }
 
     render_world_draw_hud_overlay(hud);
+    render_world_draw_signature_overlay();
 #else
     uint16_t bg = hud->accel_fail ? 0x1800u : 0x0000u;
     par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
@@ -324,6 +342,16 @@ bool render_world_draw(render_state_t *rs,
     const int32_t ov_y1 = ov_y0 + EDGEAI_HUD_H - 1;
     par_lcd_s035_fill_rect(ov_x0, ov_y0, ov_x1, ov_y1, 0x0000u);
     edgeai_text5x7_draw_scaled(ov_x0, ov_y0, 1, status, 0x001Fu);
+
+    {
+        static const char sig[] = "(c)RICHARD HABERKERN";
+        const int32_t sx0 = EDGEAI_SIG_X0;
+        const int32_t sy0 = EDGEAI_SIG_Y0;
+        const int32_t sx1 = sx0 + EDGEAI_SIG_W - 1;
+        const int32_t sy1 = sy0 + EDGEAI_SIG_H - 1;
+        par_lcd_s035_fill_rect(sx0, sy0, sx1, sy1, 0xFFFFu);
+        edgeai_text5x7_draw_scaled(sx0, sy0, 1, sig, 0x0000u);
+    }
 #endif
 
     rs->prev_x = cx;
