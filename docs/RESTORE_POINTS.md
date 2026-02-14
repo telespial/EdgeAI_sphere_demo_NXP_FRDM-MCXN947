@@ -221,7 +221,7 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Commit: `git rev-parse GOLDEN_2026-02-14_v28_github_pull_baseline`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: same runtime behavior as v27 NPU glint golden; promoted so GitHub default pull target, golden tag, and failsafe pointer all align.
-- Failsafe pointer: `docs/failsafe.md` -> `failsafe/FAILSAFE_2026-02-14_v28_from_v27_7bab699.elf`
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v28_from_v27_7bab699.elf` (archived)
 - Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 
 ### 2026-02-14 Golden (Current): Restore v27 Exact Working Image
@@ -230,7 +230,7 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Commit: `7bab69912abc2de358ceaa6b897fa8fce143de32`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: exact working runtime restored from v27 (NPU glint enabled build).
-- Failsafe pointer: `docs/failsafe.md` -> `failsafe/FAILSAFE_2026-02-14_v29_restore_v27_exact_7bab699.elf`
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v29_restore_v27_exact_7bab699.elf` (archived)
 - Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 - Notes: use this entry for recovery if newer promoted states regress behavior.
 
@@ -240,7 +240,7 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Commit: `b545bc7c700bf9871e55f9b8425f6b6b7c711333`
 - Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
 - Behavior: working runtime relocked after restoring render path to failsafe baseline; board verified operational again.
-- Failsafe pointer: `docs/failsafe.md` -> `failsafe/FAILSAFE_2026-02-14_v30_main_b545bc7.elf`
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v30_main_b545bc7.elf` (archived)
 - Build: `BUILD_DIR="$PWD/mcuxsdk_ws/build_main_safe" ./tools/build_frdmmcxn947.sh`
 - Notes: archived after hardware regression reports; active failsafe pointer was reverted to v29.
 
