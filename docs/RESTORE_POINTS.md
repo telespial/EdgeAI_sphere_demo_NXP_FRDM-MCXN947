@@ -234,6 +234,16 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 - Notes: use this entry for recovery if newer promoted states regress behavior.
 
+### 2026-02-14 Golden (Current): Working Runtime Relock
+- Tag: `GOLDEN_2026-02-14_v30_working_relock`
+- Lock tag: `GOLDEN_LOCK_2026-02-14_v30_*` (includes SHA in name; do not move)
+- Commit: `b545bc7c700bf9871e55f9b8425f6b6b7c711333`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: working runtime relocked after restoring render path to failsafe baseline; board verified operational again.
+- Failsafe pointer: `docs/failsafe.md` -> `failsafe/FAILSAFE_2026-02-14_v30_main_b545bc7.elf`
+- Build: `BUILD_DIR="$PWD/mcuxsdk_ws/build_main_safe" ./tools/build_frdmmcxn947.sh`
+- Notes: this entry supersedes v29 for current pull/restore baseline.
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`
