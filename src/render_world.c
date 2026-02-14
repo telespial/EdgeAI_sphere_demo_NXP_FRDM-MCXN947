@@ -58,14 +58,6 @@ static inline void render_sincos_q14(uint8_t a, int32_t *sin_q14, int32_t *cos_q
 static uint16_t s_tile[EDGEAI_TILE_MAX_W * EDGEAI_TILE_MAX_H];
 #endif
 
-enum
-{
-    EDGEAI_HUD_W = 120,
-    EDGEAI_HUD_H = 9,
-    EDGEAI_HUD_X0 = 2,
-    EDGEAI_HUD_Y0 = 2,
-};
-
 void render_world_init(render_state_t *rs, int32_t cx, int32_t cy)
 {
     if (!rs) return;
@@ -108,8 +100,10 @@ static void render_world_draw_hud_tile(uint16_t *dst, uint32_t w, uint32_t h,
 {
     if (!dst || !hud) return;
 
-    const int32_t ov_x0 = EDGEAI_HUD_X0;
-    const int32_t ov_y0 = EDGEAI_HUD_Y0;
+    /* HUD region (top-right). */
+    const int32_t ov_w = 120;
+    const int32_t ov_x0 = EDGEAI_LCD_W - ov_w - 2;
+    const int32_t ov_y0 = 2;
 
     char d3[4];
     edgeai_u32_to_dec3(d3, hud->fps_last);
@@ -123,21 +117,6 @@ static void render_world_draw_hud_tile(uint16_t *dst, uint32_t w, uint32_t h,
 
     sw_render_text5x7(dst, w, h, x0, y0, ov_x0, ov_y0, status, 0x001Fu);
 }
-
-#if EDGEAI_RENDER_SINGLE_BLIT
-static void render_world_blit_hud(const render_hud_t *hud)
-{
-    if (!hud) return;
-
-    const int32_t ov_x0 = EDGEAI_HUD_X0;
-    const int32_t ov_y0 = EDGEAI_HUD_Y0;
-    const int32_t ov_x1 = ov_x0 + EDGEAI_HUD_W - 1;
-    const int32_t ov_y1 = ov_y0 + EDGEAI_HUD_H - 1;
-    sw_render_dune_bg(s_tile, EDGEAI_HUD_W, EDGEAI_HUD_H, ov_x0, ov_y0);
-    render_world_draw_hud_tile(s_tile, EDGEAI_HUD_W, EDGEAI_HUD_H, ov_x0, ov_y0, hud);
-    par_lcd_s035_blit_rect(ov_x0, ov_y0, ov_x1, ov_y1, s_tile);
-}
-#endif
 
 bool render_world_draw(render_state_t *rs,
                        const sim_world_t *world,
@@ -216,6 +195,18 @@ bool render_world_draw(render_state_t *rs,
     int32_t x1 = edgeai_clamp_i32(maxx_r + pad, 0, EDGEAI_LCD_W - 1);
     int32_t y1 = edgeai_clamp_i32(maxy_r + pad, 0, EDGEAI_LCD_H - 1);
 
+    /* HUD region (top-right). */
+    const int32_t ov_w = 120;
+    const int32_t ov_h = 9;
+    const int32_t ov_x0 = EDGEAI_LCD_W - ov_w - 2;
+    const int32_t ov_y0 = 2;
+    const int32_t ov_x1 = EDGEAI_LCD_W - 2;
+    const int32_t ov_y1 = ov_y0 + ov_h - 1;
+    if (ov_x0 < x0) x0 = ov_x0;
+    if (ov_y0 < y0) y0 = ov_y0;
+    if (ov_x1 > x1) x1 = ov_x1;
+    if (ov_y1 > y1) y1 = ov_y1;
+
     int32_t w = x1 - x0 + 1;
     int32_t h = y1 - y0 + 1;
     bool did_clamp = false;
@@ -250,6 +241,7 @@ bool render_world_draw(render_state_t *rs,
     sw_render_ball_shadow(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
     sw_render_silver_ball(s_tile, (uint32_t)w, (uint32_t)h, x0, y0,
                           cx, cy_draw, r_draw, phase, world->ball.glint, spin_sin_q14, spin_cos_q14);
+		    render_world_draw_hud_tile(s_tile, (uint32_t)w, (uint32_t)h, x0, y0, hud);
 
 		    par_lcd_s035_blit_rect(x0, y0, x1, y1, s_tile);
 
@@ -285,19 +277,12 @@ bool render_world_draw(render_state_t *rs,
             sw_render_ball_shadow(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, cx, cy_ground, r_ground, (uint32_t)shadow_alpha);
             sw_render_silver_ball(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0,
                                   cx, cy_draw, r_draw, phase, world->ball.glint, spin_sin_q14, spin_cos_q14);
+            render_world_draw_hud_tile(s_tile, (uint32_t)ew, (uint32_t)eh, ex0, ey0, hud);
 
 		            par_lcd_s035_blit_rect(ex0, ey0, ex1, ey1, s_tile);
 	        }
 	    }
-
-    /* Draw HUD every frame in a dedicated blit so it never depends on ball dirty-rects. */
-    render_world_blit_hud(hud);
 #else
-    const int32_t ov_x0 = EDGEAI_HUD_X0;
-    const int32_t ov_y0 = EDGEAI_HUD_Y0;
-    const int32_t ov_x1 = ov_x0 + EDGEAI_HUD_W - 1;
-    const int32_t ov_y1 = ov_y0 + EDGEAI_HUD_H - 1;
-
     uint16_t bg = hud->accel_fail ? 0x1800u : 0x0000u;
     par_lcd_s035_fill_rect(x0, y0, x1, y1, bg);
 
