@@ -48,4 +48,6 @@ if [[ -n "${PROBE:-}" ]]; then
   probe_args+=(--probe "$PROBE")
 fi
 
-LinkServer flash "${probe_args[@]}" "$device" load --erase-all "$failsafe_path"
+# Do not use --erase-all with this ELF: LinkServer may mass-erase between
+# segments and wipe the vector table at 0x00000000 on MCXN947.
+LinkServer flash "${probe_args[@]}" "$device" load "$failsafe_path"

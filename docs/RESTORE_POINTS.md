@@ -215,6 +215,35 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 - Example build (debug): `west build -d build_v27_npu_glint mcuxsdk/examples/demo_apps/edgeai_sand_demo --toolchain armgcc --config debug -b frdmmcxn947 -Dcore_id=cm33_core0 -DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 
+### 2026-02-14 Golden (Current): GitHub Pull Baseline + Failsafe Sync
+- Tag: `GOLDEN_2026-02-14_v28_github_pull_baseline`
+- Lock tag: `GOLDEN_LOCK_2026-02-14_v28_*` (includes SHA in name; do not move)
+- Commit: `git rev-parse GOLDEN_2026-02-14_v28_github_pull_baseline`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: same runtime behavior as v27 NPU glint golden; promoted so GitHub default pull target, golden tag, and failsafe pointer all align.
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v28_from_v27_7bab699.elf` (archived)
+- Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
+
+### 2026-02-14 Golden (Current): Restore v27 Exact Working Image
+- Tag: `GOLDEN_2026-02-14_v29_restore_v27_exact`
+- Lock tag: `GOLDEN_LOCK_2026-02-14_v29_*` (includes SHA in name; do not move)
+- Commit: `7bab69912abc2de358ceaa6b897fa8fce143de32`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: exact working runtime restored from v27 (NPU glint enabled build).
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v29_restore_v27_exact_7bab699.elf` (archived)
+- Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
+- Notes: use this entry for recovery if newer promoted states regress behavior.
+
+### 2026-02-14 Golden: Working Runtime Relock (Archived)
+- Tag: `GOLDEN_2026-02-14_v30_working_relock`
+- Lock tag: `GOLDEN_LOCK_2026-02-14_v30_*` (includes SHA in name; do not move)
+- Commit: `b545bc7c700bf9871e55f9b8425f6b6b7c711333`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: working runtime relocked after restoring render path to failsafe baseline; board verified operational again.
+- Failsafe pointer: `docs/failsafe.md` -> `bad_builds/FAILSAFE_2026-02-14_v30_main_b545bc7.elf` (archived)
+- Build: `BUILD_DIR="$PWD/mcuxsdk_ws/build_main_safe" ./tools/build_frdmmcxn947.sh`
+- Notes: archived after hardware regression reports; active failsafe pointer was reverted to v29.
+
 ### 2026-02-14 Golden (Current): HUD Top-Left + Startup Visibility
 - Tag: `GOLDEN_2026-02-14_v31_hud_top_left_boot_visible`
 - Lock tag: `GOLDEN_LOCK_2026-02-14_v31_4b59071` (includes SHA in name; do not move)
