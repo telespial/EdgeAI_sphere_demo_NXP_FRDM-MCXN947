@@ -15,8 +15,8 @@ Current rendering notes:
 
 ## Known-Good Revision (Golden)
 If anything breaks, return to this exact revision:
-- Current golden tag: `GOLDEN_2026-02-14_v31_hud_top_left_boot_visible`
-- Commit: `git rev-parse GOLDEN_2026-02-14_v31_hud_top_left_boot_visible`
+- Current golden tag: `GOLDEN_2026-02-14_v32_signature_full_name`
+- Commit: `git rev-parse GOLDEN_2026-02-14_v32_signature_full_name`
 - Baseline golden (older): `milestone_raster_flicker_npu_v9` @ `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
 
 Golden tag policy:
@@ -27,7 +27,7 @@ Failsafe firmware policy:
 
 Checkout + rebuild + flash:
 ```bash
-git checkout GOLDEN_2026-02-14_v31_hud_top_left_boot_visible
+git checkout GOLDEN_2026-02-14_v32_signature_full_name
 MCUX_EXAMPLES_DIR="$PWD/mcuxsdk_ws_test/mcuxsdk/examples" ./sdk_example/install_mcux_overlay.sh
 ninja -C mcuxsdk_ws_test/build
 WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
@@ -59,6 +59,7 @@ Key folders:
   - `B:S` stub backend, `B:N` neutron backend
   - `N:1` backend init ok
   - `I:1` NPU step enabled (`EDGEAI_ENABLE_NPU_INFERENCE=1`)
+- Signature: top-right text shows `(c)RICHARD HABERKERN` fully (black text).
 
 Serial output (optional):
 - `timeout 10 cat /dev/ttyACM0`

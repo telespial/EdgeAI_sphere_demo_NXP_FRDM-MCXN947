@@ -225,6 +225,16 @@ WS_DIR="$PWD/mcuxsdk_ws_test" ./tools/flash_frdmmcxn947.sh
 - Example build (debug): `west build -d build_v27_exact_flags mcuxsdk/examples/demo_apps/edgeai_sand_demo --toolchain armgcc --config debug -b frdmmcxn947 -Dcore_id=cm33_core0 -DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
 - Failsafe artifact: `failsafe/FAILSAFE_2026-02-14_v31_hud_top_left_boot_visible_4b59071.elf`
 
+### 2026-02-14 Golden (Current): Signature Full Name + Glyph Completion
+- Tag: `GOLDEN_2026-02-14_v32_signature_full_name`
+- Lock tag: `GOLDEN_LOCK_2026-02-14_v32_1983041` (includes SHA in name; do not move)
+- Commit: `19830418466bd5041d9d6fbc636bac8803df1254`
+- Hardware: FRDM-MCXN947 + PAR-LCD-S035 + Accel 4 Click (FXLS8974CF over mikroBUS/I2C)
+- Behavior: keeps v31 behavior (HUD top-left startup visibility) and adds persistent top-right signature text `(c)RICHARD HABERKERN` with complete glyph coverage so all letters render.
+- Build: `-DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
+- Example build (debug): `west build -d build_v27_exact_flags mcuxsdk/examples/demo_apps/edgeai_sand_demo --toolchain armgcc --config debug -b frdmmcxn947 -Dcore_id=cm33_core0 -DEDGEAI_ENABLE_NPU_INFERENCE=1 -DEDGEAI_NPU_BACKEND=1`
+- Failsafe artifact: `failsafe/FAILSAFE_2026-02-14_v32_signature_full_name_1983041.elf`
+
 ## Template (Copy/Paste)
 ### YYYY-MM-DD Short Name
 - Tag: `TAG_NAME`

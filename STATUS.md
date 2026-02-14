@@ -5,8 +5,8 @@
 
 ## Golden Revision
 If anything regresses, return to:
-- Current golden tag: `GOLDEN_2026-02-14_v31_hud_top_left_boot_visible`
-- Commit: `git rev-parse GOLDEN_2026-02-14_v31_hud_top_left_boot_visible`
+- Current golden tag: `GOLDEN_2026-02-14_v32_signature_full_name`
+- Commit: `git rev-parse GOLDEN_2026-02-14_v32_signature_full_name`
 - Baseline golden (older): `milestone_raster_flicker_npu_v9` @ `5d569d4352fc723f6d6d567dcdd3c46f58025fd4`
 
 Golden tag policy:
@@ -17,7 +17,7 @@ Failsafe firmware policy:
 
 ## Last Run
 - Date: 2026-02-14
-- Result: build + flash ok; LCD shows dune background + shaded "silver ball" with trails; HUD moved to top-left and rendered at startup without requiring ball overlap
+- Result: build + flash ok; LCD shows dune background + shaded "silver ball" with trails; HUD top-left status renders at startup; top-right signature `(c)RICHARD HABERKERN` renders fully
 - Binary: `mcuxsdk_ws/build_v27_exact_flags/edgeai_sand_demo_cm33_core0.elf`
 - Notes:
   - NPU stack integrated (TFLM + Neutron backend). NPU stepping is compile-time gated (see `EDGEAI_ENABLE_NPU_INFERENCE` in `src/npu_api.h`).
