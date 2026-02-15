@@ -35,9 +35,10 @@ Notes:
 - Set `BUILD_DIR` to use a non-default build directory (for example, `BUILD_DIR=./mcuxsdk_ws/build_alt ./tools/build_frdmmcxn947.sh`).
 - For a clean rebuild, use a fresh `BUILD_DIR` or remove the existing build directory contents.
 
-## 4) Flash
+## 4) Flash (Default: Known-Good Failsafe)
 
-Flashing uses NXP LinkServer (x86_64) via `west flash -r linkserver`.
+Default flashing uses the pinned failsafe artifact in `docs/failsafe.md`.
+This is the recommended path for fresh pulls and recovery.
 
 Install LinkServer (user-local, no sudo):
 
@@ -51,16 +52,22 @@ If flashing fails with `No probes detected`, install udev rules (requires sudo),
 ./tools/install_mculink_udev_rules.sh
 ```
 
-Then flash:
+Then flash default (recommended):
+
+```bash
+./tools/flash_default.sh
+```
+
+## 5) Flash Latest Local Source Build (Advanced)
+Use this only when intentionally testing the current local source build output.
 
 ```bash
 ./tools/flash_frdmmcxn947.sh
 ```
 
-## Failsafe Flash (Last Resort)
-The active failsafe artifact is recorded in `docs/failsafe.md`.
+## Failsafe Flash (Explicit Confirmation Mode)
+The active failsafe artifact is recorded in `docs/failsafe.md`. This explicit mode is still available:
 
-Flashing requires explicit confirmation via the exact filename listed in line 1 of `docs/failsafe.md`:
 ```bash
 FAILSAFE_CONFIRM="$(sed -n '1p' docs/failsafe.md)" ./tools/flash_failsafe.sh
 ```

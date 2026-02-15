@@ -44,8 +44,9 @@ Key folders:
 1. Bootstrap user-local tools (no sudo): `./tools/bootstrap_ubuntu_user.sh`
 2. Create/update local MCUX west workspace: `./tools/setup_mcuxsdk_ws.sh`
 3. Build: `./tools/build_frdmmcxn947.sh debug`
-4. Flash (requires NXP LinkServer installed): `./tools/flash_frdmmcxn947.sh`
-5. Install repo guardrails (optional): `./tools/install_git_hooks.sh`
+4. Flash known-good default (requires NXP LinkServer installed): `./tools/flash_default.sh`
+5. Flash latest local source build (advanced): `./tools/flash_frdmmcxn947.sh`
+6. Install repo guardrails (optional): `./tools/install_git_hooks.sh`
 
 ## Tested Host Versions
 - Ubuntu: 24.04 LTS
