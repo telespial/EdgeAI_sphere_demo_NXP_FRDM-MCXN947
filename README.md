@@ -108,3 +108,7 @@ Accel axis mapping macros live in `src/accel_proc.h`:
 
 Milestone notes:
 - `docs/MILESTONE_2026-02-08_TILT_BALL_NPU.md`
+
+## License
+
+See [LICENSE](./LICENSE).
